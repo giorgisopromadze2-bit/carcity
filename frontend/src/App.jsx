@@ -6,6 +6,7 @@ import Favorites from './Favorites';
 import Listings from './Listings';
 import CarDetail from "./CarDetail";
 import Add from './Add';
+import AddDetails from "./Add"
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -40,6 +41,7 @@ function App() {
       <Route path='/listings' element={<Listings favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
       <Route path='/cars/:id' element={<CarDetail favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
       <Route path='/add' element={<Add />}/>
+      <Route path='/add/:id'element={<Add />} />
     </Routes>
     </>
   )

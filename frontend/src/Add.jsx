@@ -1,183 +1,856 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useConfig } from "./useConfig";
+import { useEffect, useRef, useState } from "react";
+import SpecSelect from "./SpecSelect";
 
-const BRANDS = ["BMW", "Porsche", "Tesla", "Mercedes", "Audi", "Toyota", "Ford", "Lexus"];
-const FUELS = ["Petrol", "Electric", "Hybrid", "Diesel"];
-const TRANSMISSIONS = ["Automatic", "Manual"];
-const EMPTY = {
-    title: "", brand: "BMW", price: "", year: new Date().getFullYear(),
-    mileage: "", fuel: "Petrol", transmission: "Automatic", image: "", description: ""
-};
+const fmt = (n) => "$" + Number(n || 0).toLocaleString("en-US");
 
 const Add = () => {
+    const { id } = useParams();
+    const isNew = !id;
     const navigate = useNavigate();
-    const [form, setForm] = useState(EMPTY);
-    const [submitted, setSubmitted] = useState(false);
-    const [errors, setErrors] = useState({});
+    const thumbsRef = useRef(null);
+    const activeThumbRef = useRef(null);
+    const { config, loading: configLoading } = useConfig();
 
-    const set = (field, val) => {
-        setForm(p => ({ ...p, [field]: val }));
-        if(errors[field]) setErrors(p => ({ ...p, [field]: "" }));
-    };
+    const [tooltip, setTooltip] = useState({ text: "", x: 0, y: 0, visible : false });
 
-    const validate = () => {
-        const e = {};
-        if(!form.title.trim()) e.title = "Title is required";
-        if(!form.price || isNaN(form.price) || Number(form.price) <= 0) e.price = "Enter a valid price";
-        if(!form.mileage.trim()) e.mileage = "Mileage is required";
-        if(!form.year || isNaN(form.year) || form.year < 1990 || form.year > 2030) e.year = "Enter a valid year";
-        return e;
-    };
+    const BRANDS = config?.brands || [];
+    const FUELS = config?.fuels || [];
+    const TRANSMISSIONS = config?.transmissions || [];
+    const ALL_SPECS = config?.allSpecs || [];
+    const EQUIPMENT_CATS = config?.equipmentCats || [];
 
-    const handleSubmit= async () => {
-        const e = validate();
-        if(Object.keys(e).length > 0){
-            setErrors(e);
-            return;
+    const [loading, setLoading] = useState(!isNew);
+    const [saving, setSaving] = useState(false);
+    const [publishing, setPublishing] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const [title, setTitle] = useState("");
+    const [brand, setBrand] = useState("");
+    const [price, setPrice] = useState("");
+    const [year, setYear] = useState(String(new Date().getFullYear()));
+    const [mileage, setMileage] = useState("");
+    const [fuel, setFuel] = useState("");
+    const [transmission, setTransmission] = useState("");
+    const [location, setLocation] = useState("");
+    const [phone, setPhone] = useState("");
+    const [description, setDescription] = useState("");
+    const [phoneError, setPhoneError] = useState("");
+    const [titleError, setTitleError] = useState("");
+    const [priceError, setPriceError] = useState("");
+
+    const [images, setImages] = useState([]);
+    const [mainImgIdx, setMainImgIdx] = useState(0);
+    const [activeImg, setActiveImg] = useState(0);
+    const [imgInput, setImgInput] = useState("");
+
+    const [removedSpecs, setRemovedSpecs] = useState([]);
+    const [specsVals, setSpecsVals] = useState({
+        year: String(new Date().getFullYear()),
+        mileage: "", engine: "", power: "",
+        fuel: "Petrol", transmission: "Automatic",
+        drivetrain: "RWD", exterior: "", interior: "",
+        vin: "", steering: "Left", customs: "Cleared",
+        owners: "", seats: "4",
+    });
+
+    const [equipment, setEquipment] = useState({});
+    const [removedEquip, setRemovedEquip] = useState({});
+    const [newEquipInput, setNewEquipInput] = useState({});
+
+    useEffect(() => {
+        if (!config) return;
+        const cats = config.equipmentCats || [];
+        setEquipment(prev => {
+            const init = {};
+            cats.forEach(c => { init[c.key] = prev[c.key] || []; });
+            return init;
+        });
+        setRemovedEquip(prev => {
+            const init = {};
+            cats.forEach(c => { init[c.key] = prev[c.key] || []; });
+            return init;
+        });
+        setNewEquipInput(prev => {
+            const init = {};
+            cats.forEach(c => { init[c.key] = prev[c.key] || ""; });
+            return init;
+        });
+        if (isNew) {
+            setBrand(prev => prev || config.brands?.[0] || "");
+            setFuel(prev => prev || config.fuels?.[0] || "");
+            setTransmission(prev => prev || config.transmissions?.[0] || "");
+            setSpecsVals(prev => ({
+                ...prev,
+                fuel: prev.fuel || config.fuels?.[0] || "Petrol",
+                transmission: prev.transmission || config.transmissions?.[0] || "Automatic",
+            }));
         }
+    }, [config]);
 
-        try {
-            const response = await fetch("http://localhost:5000/api/cars", {
+    useEffect(() => {
+        if (isNew) return;
+        const fetchCar = async () => {
+            try {
+                const res = await fetch(`http://localhost:5000/api/cars/${id}`);
+                if (!res.ok) throw new Error("not found");
+                const data = await res.json();
+                setTitle(data.title || "");
+                setBrand(data.brand || "");
+                setPrice(data.price || "");
+                setYear(data.year || "");
+                setMileage(data.mileage || "");
+                setFuel(data.fuel || "");
+                setTransmission(data.transmission || "");
+                setLocation(data.location || "");
+                setPhone(data.phone || "");
+                setDescription(data.description || "");
+                setImages(data.images || []);
+                setSpecsVals({
+                    year:         String(data.year || ""),
+                    mileage:      data.mileage || "",
+                    engine:       data.specs?.engine || "",
+                    power:        data.specs?.power || "",
+                    fuel:         data.fuel || "Petrol",
+                    transmission: data.transmission || "Automatic",
+                    drivetrain:   data.specs?.drivetrain || "RWD",
+                    exterior:     data.specs?.exterior || "",
+                    interior:     data.specs?.interior || "",
+                    vin:          data.specs?.vin || "",
+                    steering:     data.specs?.steering || "Left",
+                    customs:      data.specs?.customs || "Cleared",
+                    owners:       data.specs?.owners || "",
+                    seats:        data.specs?.seats || "4",
+                });
+                if (data.equipment) {
+                    setEquipment(prev => {
+                        const merged = { ...prev };
+                        Object.keys(data.equipment).forEach(k => {
+                            merged[k] = data.equipment[k] || [];
+                        });
+                        return merged;
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCar();
+    }, [id]);
+
+    useEffect(() => {
+        if (!activeThumbRef.current) return;
+        activeThumbRef.current.scrollIntoView({
+            behavior: "smooth", block: "nearest", inline: "center"
+        });
+    }, [activeImg, images]);
+
+    const buildPayload = (isPublish = false) => ({
+        title, brand, price: Number(price), year: Number(year),
+        mileage, fuel, transmission, location, phone, description, images,
+        specs: {
+            engine: specsVals.engine,
+            power: specsVals.power ? specsVals.power + "hp" : "",
+            drivetrain: specsVals.drivetrain,
+            exterior: specsVals.exterior,
+            interior: specsVals.interior,
+            vin: specsVals.vin,
+            steering: specsVals.steering,
+            customs: specsVals.customs,
+            owners: specsVals.owners,
+            seats: specsVals.seats,
+        },
+        equipment,
+        ...(isPublish ? { published: true } : {}),
+    });
+
+    const validate = (requirePhone = false) => {
+        let valid = true;
+        if (!title.trim()) { setTitleError("Title is required"); valid = false; }
+        else setTitleError("");
+        if (!price || isNaN(price) || Number(price) <= 0) { setPriceError("Enter a valid price"); valid = false; }
+        else setPriceError("");
+        if (requirePhone && !phone.trim()) { setPhoneError("Phone number is required to publish"); valid = false; }
+        else if (requirePhone) setPhoneError("");
+        return valid;
+    };
+
+    const doSave = async (payload) => {
+        if (isNew) {
+            const res = await fetch("http://localhost:5000/api/cars", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...form,
-                    price: Number(form.price),
-                    year: Number(form.year),
-                }),
+                body: JSON.stringify(payload),
             });
-
-            if(!response.ok) throw new Error("server error");
-
-            setSubmitted(true);
-        } catch (err) {
-            console.log(err);
-            alert("Something went wrong. Please try again");
+            if (!res.ok) throw new Error("save failed");
+            const data = await res.json();
+            navigate(`/add/${data._id}`, { replace: true });
+            return data;
+        } else {
+            const res = await fetch(`http://localhost:5000/api/cars/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error("save failed");
+            return res.json();
         }
     };
 
-    if(submitted) {
-        return (
-            <div className="add-page">
-                <div className="add-success">
-                    <div className="add-success-icon">✓</div>
-                    <h2 className="add-success-title">Listing published!</h2>
-                    <p className="add-success-text">Your car has been listed successfully.</p>
-                    <div className="add-success-btns">
-                        <button className="add-submit-btn" onClick={() => {
-                            setForm(EMPTY);
-                            setSubmitted(false);
-                        }}>Add another</button>
-                        <button className="add-cancel-btn" onClick={() => navigate("/listings")}>
-                            View listings
-                        </button>
+    const handleSave = async () => {
+        if (!validate(false)) return;
+        setSaving(true);
+        try {
+            await doSave(buildPayload(false));
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+        } catch {
+            alert("Something went wrong.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handlePublish = async () => {
+        if (!validate(true)) return;
+        setPublishing(true);
+        try {
+            await doSave(buildPayload(true));
+            navigate("/listings");
+        } catch {
+            alert("Something went wrong.");
+        } finally {
+            setPublishing(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (isNew) { navigate(-1); return; }
+        if (!window.confirm("Delete this listing?")) return;
+        setDeleting(true);
+        try {
+            await fetch(`http://localhost:5000/api/cars/${id}`, { method: "DELETE" });
+            navigate("/listings");
+        } catch {
+            alert("Delete failed.");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const addImage = () => {
+        const url = imgInput.trim();
+        if (!url) return;
+        setImages(p => [...p, url]);
+        setImgInput("");
+    };
+
+    const removeImage = (i) => {
+        setImages(p => p.filter((_, idx) => idx !== i));
+        if (mainImgIdx >= i && mainImgIdx > 0) setMainImgIdx(p => p - 1);
+        setActiveImg(0);
+    };
+
+    const prevImg = () => setActiveImg(p => (p - 1 + images.length) % images.length);
+    const nextImg = () => setActiveImg(p => (p + 1) % images.length);
+
+    const toggleSpec = (key) => {
+        setRemovedSpecs(p => p.includes(key) ? p.filter(k => k !== key) : [...p, key]);
+    };
+
+    const toggleEquip = (cat, item) => {
+        setEquipment(p => {
+            const list = p[cat] || [];
+            return { ...p, [cat]: list.includes(item) ? list.filter(i => i !== item) : [...list, item] };
+        });
+    };
+
+    const removeEquip = (cat, item) => {
+        setEquipment(p => ({ ...p, [cat]: p[cat].filter(i => i !== item) }));
+        const catDef = EQUIPMENT_CATS.find(c => c.key === cat);
+        if (catDef?.suggestions.includes(item)) {
+            setRemovedEquip(p => ({ ...p, [cat]: [...(p[cat] || []), item] }));
+        }
+    };
+
+    const addCustomEquip = (cat) => {
+        const val = newEquipInput[cat]?.trim();
+        if (!val) return;
+        if (!equipment[cat]?.includes(val)) {
+            setEquipment(p => ({ ...p, [cat]: [...(p[cat] || []), val] }));
+        }
+        setNewEquipInput(p => ({ ...p, [cat]: "" }));
+    };
+
+    if (loading || configLoading) return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <p style={{ color: "var(--text-secondary)" }}>Loading...</p>
+        </div>
+    );
+
+    const displayImg = images[activeImg] || null;
+
+    return (
+        <div className="car-main">
+            <div className="cdh-inner" style={{ paddingBottom: 0 }}>
+                <div 
+                    style={{ 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "space-between", 
+                        marginBottom: 8 
+                    }}>
+                    <button 
+                        className="cdh-back" 
+                        onClick={() => navigate(-1)
+                    }>
+                        <img src="/back.png" alt="" className="cdh-back-icon" />
+                        Back
+                    </button>
+                    <div style={{ textAlign: "right" }}>
+                        <h1 className="add-title" style={{ marginBottom: 2 }}>
+                            {isNew ? "Sell your car" : "Edit listing"}
+                        </h1>
+                        <p className="add-subtitle">
+                            {isNew
+                                ? "Reach thousands of buyers in minutes. Listings are free."
+                                : "Update your listing details below."}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="cdh-layout">
+                    <div className="cdh-gallery">
+                        <div className="cdh-main-wrap">
+                            {displayImg
+                                ? <img src={displayImg} alt={title} className="cdh-main-img" />
+                                : <div className="add-details-no-img" onClick={() => document.getElementById("file-upload-input").click()}>
+                                    <div className="add-details-no-img-icon">+</div>
+                                    <span className="add-details-no-img-text">Add photos or video</span>
+                                    <span className="add-details-no-img-sub">Click to upload from your device</span>
+                                </div>
+                            }
+                            <div className="cdh-badges">
+                                {brand && <span className="cdh-badge-brand">{brand}</span>}
+                            </div>
+                            {images.length > 1 && <>
+                                <button className="cdh-arrow cdh-arrow-left" onClick={prevImg}>
+                                    <img src="/arrow-left.png" alt="" className="cdh-arrow-icon" />
+                                </button>
+                                <button className="cdh-arrow cdh-arrow-right" onClick={nextImg}>
+                                    <img src="/arrow-right.png" alt="" className="cdh-arrow-icon" />
+                                </button>
+                                <span className="cdh-counter">{activeImg + 1} / {images.length}</span>
+                            </>}
+                        </div>
+                        <input 
+                            id="file-upload-input"
+                            type="file"
+                            accept="image/*,video/*"
+                            multiple
+                            style={{ display: "none" }}
+                            onChange={e => {
+                                const files = Array.from(e.target.files);
+                                files.forEach(file => {
+                                    const url = URL.createObjectURL(file);
+                                    setImages(p => [...p, url]);
+                                });
+                                e.target.value = "";
+                            }}
+                        />
+                        {images.length > 0 && (
+                            <div
+                                className="cdh-thumbs add-details-thumbs-scroll"
+                                ref={thumbsRef}
+                                onMouseDown={e => {
+                                    e.preventDefault();
+                                    const el = thumbsRef.current;
+                                    el._drag = true;
+                                    el._startX = e.pageX - el.offsetLeft;
+                                    el._scrollLeft = el.scrollLeft;
+                                }}
+                                onMouseMove={e => {
+                                    const el = thumbsRef.current;
+                                    if (!el._drag) return;
+                                    el.scrollLeft = el._scrollLeft - (e.pageX - el.offsetLeft - el._startX);
+                                }}
+                                onMouseUp={() => thumbsRef.current._drag = false}
+                                onMouseLeave={() => thumbsRef.current._drag = false}
+                                onWheel={e => { thumbsRef.current.scrollLeft += e.deltaY; }}
+                            >
+                                {images.map((img, i) => (
+                                    <div 
+                                        key={i} 
+                                        className="add-details-thumb-wrap" 
+                                        ref={activeImg === i ? activeThumbRef : null}
+                                    >
+                                        <button 
+                                            className={`cdh-thumb ${activeImg === i ? "active" : ""}`} 
+                                            onClick={() => setActiveImg(i)}
+                                            style={{ width: "100%", height: "100%", margin: 0 }}
+                                        >
+                                            <img src={img} alt="" className="cdh-thumb-img" />
+                                        </button>
+
+                                        <button 
+                                            className={`add-details-thumb-star ${mainImgIdx === i ? "is-main" : ""}`}
+                                            onClick={() => { setMainImgIdx(i); setActiveImg(i); }}
+                                            onMouseEnter={e => {
+                                                const r = e.currentTarget.getBoundingClientRect();
+                                                setTooltip({ text: mainImgIdx === i ? "Main photo" : "Set as main", x: r.left + r.width / 2, y: r.top - 8, visible: true });
+                                            }}
+                                            onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
+                                        >⭐</button>
+
+                                        <button 
+                                            className="add-details-thumb-del" 
+                                            onClick={() => removeImage(i)}
+                                            onMouseEnter={e => {
+                                                const r = e.currentTarget.getBoundingClientRect();
+                                                setTooltip({ text: "Remove photo", x: r.left + r.width / 2, y: r.top - 8, visible: true });
+                                            }}
+                                            onMouseLeave={() => setTooltip(t => ({ ...t, visible: false }))}
+                                        >×</button>
+                                    </div>
+                                ))}
+                                {tooltip.visible && (
+                                    <div style={{
+                                        position: "fixed",
+                                        left: tooltip.x,
+                                        top: tooltip.y,
+                                        transform: "translate(-50%, -100%)",
+                                        background: "rgba(0,0,0,0.78)",
+                                        color: "#fff",
+                                        fontSize: 11,
+                                        fontWeight: 500,
+                                        padding: "4px 9px",
+                                        borderRadius: 6,
+                                        whiteSpace: "nowrap",
+                                        pointerEvents: "none",
+                                        zIndex: 9999,
+                                        fontFamily: "inherit",
+                                        animation: "tooltip-in 0.15s ease",
+                                    }}>
+                                        {tooltip.text}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="cdh-info">
+                        <div className="cdh-tags">
+                            {brand && <span className="cdh-tag cdh-tag-brand">{brand}</span>}
+                            {year && <span className="cdh-tag">{year}</span>}
+                        </div>
+
+                        <div className="add-field">
+                            <label className="add-label">Title <span style={{ color: "#e11d48" }}>*</span></label>
+                            <input
+                                className={`add-input ${titleError ? "add-input-error" : ""}`}
+                                placeholder="e.g. BMW M4 Competition"
+                                value={title}
+                                onChange={e => { setTitle(e.target.value); setTitleError(""); }}
+                            />
+                            {titleError && <span className="add-error">{titleError}</span>}
+                        </div>
+
+                        <div className="add-field">
+                            <label className="add-label">Location <span style={{ color: "#e11d48" }}>*</span></label>
+                            <input
+                                className="add-input"
+                                placeholder="e.g. Tbilisi"
+                                value={location}
+                                onChange={e => setLocation(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="add-field">
+                            <label className="add-label">Price (USD) <span style={{ color: "#e11d48" }}>*</span></label>
+                            <input
+                                className={`add-input ${priceError ? "add-input-error" : ""}`}
+                                type="number"
+                                placeholder="84500"
+                                value={price}
+                                onChange={e => { setPrice(e.target.value); setPriceError(""); }}
+                            />
+                            {priceError && <span className="add-error">{priceError}</span>}
+                            {price > 0 && <div className="cdh-price" style={{ marginTop: 4, fontSize: 32 }}>{fmt(price)}</div>}
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div className="add-field">
+                                <label className="add-label">Brand <span style={{ color: "#e11d48" }}>*</span></label>
+                                <select className="add-select" value={brand} onChange={e => setBrand(e.target.value)}>
+                                    {BRANDS.map(b => <option key={b}>{b}</option>)}
+                                </select>
+                            </div>
+                            <div className="add-field">
+                                <label className="add-label">Year <span style={{ color: "#e11d48" }}>*</span></label>
+                                <input
+                                    className="add-input"
+                                    type="number"
+                                    value={year}
+                                    onChange={e => { 
+                                        setYear(e.target.value); 
+                                        setSpecsVals(p => ({ ...p, year: e.target.value })); 
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="add-field">
+                            <label className="add-label">
+                                Phone number <span style={{ color: "#e11d48" }}>*</span>
+                            </label>
+                            <input
+                                className={`add-input ${phoneError ? "add-input-error" : ""}`}
+                                placeholder="+995 123-456-789"
+                                value={phone}
+                                onChange={e => { setPhone(e.target.value); setPhoneError(""); }}
+                            />
+                            {phoneError && <span className="add-error">{phoneError}</span>}
+                        </div>
+
+                        <div className="add-field">
+                            <label className="add-label">Photos / video</label>
+                            <button
+                                className="add-cancel-btn"
+                                style={{ width: "100%", padding: "11px 14px", textAlign: "left" }}
+                                onClick={() => document.getElementById("file-upload-input").click()}
+                            >
+                                📎 Upload photos or video
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        );
-    };
 
-    return ( 
-        <div className="add-page">
-            <div className="add-inner">
-                <div className="add-header">
-                    <h1 className="add-title">Sell your car</h1>
-                    <p className="add-subtitle">Reach thousands of buyers in minutes. Listings are free.</p>
+            <section className="car-specs-section" style={{ paddingTop: 48 }}>
+                <div className="car-specs-header">
+                    <h2 className="car-specs-title">Specifications</h2>
+                    <span className="car-specs-count">
+                        {ALL_SPECS.filter(s => !removedSpecs.includes(s.key)).length} / {ALL_SPECS.length} visible
+                    </span>
                 </div>
-                <div className="add-card">
-                    <div className="add-grid">
-                        <div className="add-field">
-                            <label className="add-label">Title</label>
-                            <input 
-                                className={`add-input ${errors.title ? "add-input-error" : ""}`}
-                                placeholder="e. g. BMW M4 Competition"
-                                value={form.title}
-                                onChange={e => set("title" , e.target.value)}
+                <div className="car-specs-grid">
+                    {ALL_SPECS.map(spec => {
+                        const isRemoved = removedSpecs.includes(spec.key);
+
+                        const specCard = (children) => (
+                            <div key={spec.key} className="car-spec-card add-details-spec-card" style={{ opacity: isRemoved ? 0.25 : 1 }}>
+                                <div className="car-spec-icon-wrap">
+                                    <img src={spec.icon} alt="" className="car-spec-icon" />
+                                </div>
+                                <span className="car-spec-label">{spec.label}</span>
+                                {children}
+                                <button
+                                    className={`add-details-spec-toggle ${isRemoved ? "is-removed" : ""}`}
+                                    title={isRemoved ? "Restore" : "Hide"}
+                                    onClick={() => toggleSpec(spec.key)}
+                                >
+                                    {isRemoved ? "+" : "−"}
+                                </button>
+                            </div>
+                        );
+
+                        if (spec.key === "fuel") return specCard(
+                            <SpecSelect 
+                                value={specsVals.fuel || "Petrol"} 
+                                options={FUELS} disabled={isRemoved}
+                                onChange={val => { 
+                                    setSpecsVals(p => ({ ...p, fuel: val })); 
+                                    setFuel(val); 
+                                }} 
                             />
-                            {errors.title && <span className="add-error">{errors.title}</span>}
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Brand</label>
-                            <select className="add-select" value={form.brand} onChange={e => set("brand", e.target.value)}>
-                                {BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                            </select>
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Price (USD)</label>
-                            <input 
-                                className={`add-input ${errors.price ? "add-input-error" : ""}`}
-                                placeholder="84500"
-                                type="number"
-                                value={form.price}
-                                onChange={e => set("price", e.target.value)}
+                        );
+                        if (spec.key === "transmission") return specCard(
+                            <SpecSelect 
+                                value={specsVals.transmission || "Automatic"} 
+                                options={TRANSMISSIONS} 
+                                disabled={isRemoved}
+                                onChange={val => { 
+                                    setSpecsVals(p => ({ ...p, transmission: val })); 
+                                    setTransmission(val); 
+                                }} 
                             />
-                            {errors.price && <span className="add-error">{errors.price}</span>}
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Year</label>
-                            <input 
-                                className={`add-input ${errors.year ? "add-input-error" : ""}`}
-                                placeholder="2024"
-                                type="number"
-                                value={form.year}
-                                onChange={e => set("year", e.target.value)}
+                        );
+                        if (spec.key === "drivetrain") return specCard(
+                            <SpecSelect 
+                                value={specsVals.drivetrain || "RWD"} 
+                                options={["FWD", "RWD", "AWD", "4WD"]} 
+                                disabled={isRemoved}
+                                onChange={val => setSpecsVals(p => ({ ...p, drivetrain: val }))} 
                             />
-                            {errors.year && <span className="add-error">{errors.year}</span>}
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Mileage (mi)</label>
+                        );
+                        if (spec.key === "steering") return specCard(
+                            <SpecSelect 
+                                value={specsVals.steering || "Left"} 
+                                options={["Left", "Right"]} 
+                                disabled={isRemoved}
+                                onChange={val => setSpecsVals(p => ({ ...p, steering: val }))} />
+                        );
+                        if (spec.key === "customs") return specCard(
+                            <SpecSelect 
+                                value={specsVals.customs || "Cleared"} 
+                                options={["Cleared", "Not Cleared"]} 
+                                disabled={isRemoved}
+                                onChange={val => setSpecsVals(p => ({ ...p, customs: val }))} />
+                        );
+                        if (spec.key === "engine") return specCard(
                             <input 
-                                className={`add-input ${errors.mileage ? "add-input-error" : ""}`}
-                                placeholder="120000"
-                                value={form.mileage}
-                                onChange={e => set("mileage", e.target.value)}
-                            />
-                            {errors.mileage && <span className="add-error">{errors.mileage}</span>}
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Fuel Type</label>
-                            <select className="add-select" value={form.fuel} onChange={e => set("fuel", e.target.value)}>
-                                {FUELS.map(f => <option key={f} value={f}>{f}</option>)}
-                            </select>
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Transmission</label>
-                            <select className="add-select" value={form.transmission} onChange={e => set("transmission", e.target.value)}>
-                                {TRANSMISSIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                        <div className="add-field">
-                            <label className="add-label">Image URL</label>
+                                className="add-details-spec-input" 
+                                type="number" 
+                                step="0.1" 
+                                min="0" 
+                                placeholder="3.5"
+                                value={specsVals.engine || ""} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, engine: e.target.value }))} />
+                        );
+                        if (spec.key === "power") return specCard(
+                            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                                <input 
+                                    className="add-details-spec-input" 
+                                    type="number" 
+                                    min="0" 
+                                    placeholder="435" 
+                                    style={{ flex: 1 }}
+                                    value={specsVals.power || ""} 
+                                    disabled={isRemoved}
+                                    onChange={e => setSpecsVals(p => ({ ...p, power: e.target.value }))} />
+                                <span 
+                                    style={{ 
+                                        fontSize: 12, 
+                                        fontWeight: 600, 
+                                        color: "var(--text-secondary)", 
+                                        flexShrink: 0 
+                                    }}
+                                >hp</span>
+                            </div>
+                        );
+                        if (spec.key === "year") return specCard(
                             <input 
-                                className="add-input"
-                                placeholder="https:/..."
-                                value={form.image}
-                                onChange={e => set("image", e.target.value)}
+                                className="add-details-spec-input" 
+                                type="number" 
+                                min="1900"
+                                max={new Date().getFullYear()}
+                                value={specsVals.year || ""} 
+                                disabled={isRemoved}
+                                onChange={e => { 
+                                    setSpecsVals(p => ({ ...p, year: e.target.value })); 
+                                    setYear(e.target.value); 
+                                }} 
                             />
+                        );
+                        if (spec.key === "mileage") return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                type="number" 
+                                min="0"
+                                value={specsVals.mileage || ""} 
+                                disabled={isRemoved}
+                                onChange={e => { 
+                                    setSpecsVals(p => ({ ...p, mileage: e.target.value })); 
+                                    setMileage(e.target.value); 
+                                }} 
+                            />
+                        );
+                        if (spec.key === "exterior") return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                placeholder="Blue"
+                                value={specsVals.exterior || ""} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, exterior: e.target.value }))} />
+                        );
+                        if (spec.key === "interior") return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                placeholder="Red"
+                                value={specsVals.interior || ""} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, interior: e.target.value }))} />
+                        );
+                        if (spec.key === "vin") return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                placeholder="1HGCM82633A123456"
+                                value={specsVals.vin || ""} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, vin: e.target.value }))} />
+                        );
+                        if (spec.key === "owners") return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                type="number" 
+                                min="0" 
+                                placeholder="1"
+                                value={specsVals.owners || ""} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, owners: e.target.value }))} />
+                        );
+                        if (spec.key === "seats") return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                type="number" 
+                                min="1"
+                                value={specsVals.seats ?? "4"} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, seats: String(Math.max(1, Number(e.target.value))) }))} />
+                        );
+                        return specCard(
+                            <input 
+                                className="add-details-spec-input" 
+                                placeholder="—"
+                                value={specsVals[spec.key] || ""} 
+                                disabled={isRemoved}
+                                onChange={e => setSpecsVals(p => ({ ...p, [spec.key]: e.target.value }))} />
+                        );
+                    })}
+                </div>
+            </section>
+
+            <section className="eq-section">
+                <h2 className="eq-title">Features &amp; equipment</h2>
+                <div className="eq-grid">
+                    {EQUIPMENT_CATS.map(cat => (
+                        <div key={cat.key} className="eq-card">
+                            <div className="eq-icon-wrap">
+                                <img src={cat.icon} alt="" className="eq-icon" />
+                                <span className="eq-cat-label">{cat.label}</span>
+                            </div>
+                            <div className="add-details-eq-chips">
+                                {cat.suggestions.map(s => {
+                                    const active = equipment[cat.key]?.includes(s);
+                                    const removed = removedEquip[cat.key]?.includes(s);
+                                    if (removed && !active) return null;
+                                    return (
+                                        <button 
+                                            key={s} 
+                                            className={`add-details-eq-chip ${active ? "active" : ""}`} 
+                                            onClick={() => toggleEquip(cat.key, s)}
+                                        >
+                                            {active ? "✓ " : ""}{s}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div style={{ display: "flex", gap: 7 }}>
+                                <input
+                                    className="add-input"
+                                    style={{ flex: 1, padding: "7px 11px", fontSize: 12.5, borderRadius: 9 }}
+                                    placeholder="Add custom feature..."
+                                    value={newEquipInput[cat.key] || ""}
+                                    onChange={e => setNewEquipInput(p => ({ ...p, [cat.key]: e.target.value }))}
+                                    onKeyDown={e => e.key === "Enter" && addCustomEquip(cat.key)}
+                                />
+                                <button 
+                                    className="add-details-eq-add-btn" 
+                                    onClick={() => addCustomEquip(cat.key)}
+                                >+</button>
+                            </div>
+                            <ul className="eq-list">
+                                {(equipment[cat.key] || []).map(item => (
+                                    <li 
+                                        key={item} 
+                                        className="eq-item" 
+                                        style={{ justifyContent: "space-between" }}
+                                    >
+                                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <img src="/verified.png" alt="" className="eq-check" />
+                                            {item}
+                                        </span>
+                                        <button 
+                                            className="add-details-eq-remove" 
+                                            onClick={() => removeEquip(cat.key, item)}
+                                        >×</button>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                    </div>
-                    <div className="add-field add-field-full">
-                        <label className="add-label">Description</label>
-                        <textarea  
+                    ))}
+                </div>
+            </section>
+
+            <section className="about-car-section">
+                <div className="about-car-inner">
+                    <div className="about-car-card">
+                        <h2 className="about-car-title">About this vehicle</h2>
+                        <textarea
                             className="add-textarea"
+                            rows={7}
                             placeholder="Tell buyers what makes this car special..."
-                            value={form.description}
-                            onChange={e => set("description", e.target.value)}
-                            rows={5}
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
                         />
                     </div>
-                    <div className="add-actions">
-                        <button className="add-submit-btn" onClick={handleSubmit}>
-                            Publish Listing
-                        </button>
-                        <button className="add-cancel-btn" onClick={() => navigate(-1)}>
-                            Cancel
-                        </button>
+                    <div className="about-car-card about-market-card">
+                        <div className="market-head">
+                            <h2 className="about-car-title">Market insight</h2>
+                            <span className="market-badge">✦ Preview</span>
+                        </div>
+                        <div className="market-price">{fmt(price)}</div>
+                        <p className="market-based">Price updates as you type</p>
+                        <div className="market-range-wrap">
+                            <div className="market-track">
+                                <div className="market-dot" style={{ left: "50%" }} />
+                            </div>
+                            <div className="market-labels">
+                                <span>—</span><span>Your price</span><span>—</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </section>
+
+            <div 
+                style={{ 
+                    padding: "0 100px 80px", 
+                    display: "flex", 
+                    gap: 12, 
+                    alignItems: "center" 
+                }}
+            >
+                <button
+                    className="add-submit-btn"
+                    style={{ fontSize: 15, padding: "13px 36px" }}
+                    onClick={handlePublish}
+                    disabled={publishing}
+                >
+                    {publishing ? "Publishing..." : "Publish Listing"}
+                </button>
+                <button
+                    className="add-cancel-btn"
+                    style={{ fontSize: 15, padding: "13px 28px" }}
+                    onClick={handleSave}
+                    disabled={saving}
+                >
+                    {saving ? "Saving..." : saved ? "✓ Saved" : "Save Draft"}
+                </button>
+                {!isNew && (
+                    <button
+                        className="add-cancel-btn"
+                        style={{ 
+                            fontSize: 15, 
+                            padding: "13px 28px", 
+                            color: "#e11d48", 
+                            borderColor: "rgba(225,29,72,0.3)", 
+                            marginLeft: "auto" 
+                        }}
+                        onClick={handleDelete}
+                        disabled={deleting}
+                    >
+                        🗑 Delete Listing
+                    </button>
+                )}
             </div>
         </div>
     );
-}
- 
+};
+
 export default Add;
