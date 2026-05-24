@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useConfig } from "./useConfig";
 import { useEffect, useRef, useState } from "react";
 import SpecSelect from "./SpecSelect";
+import { style } from "framer-motion/client";
 
 const fmt = (n) => "$" + Number(n || 0).toLocaleString("en-US");
 
@@ -15,7 +16,8 @@ const Add = () => {
 
     const [tooltip, setTooltip] = useState({ text: "", x: 0, y: 0, visible : false });
 
-    const BRANDS = config?.brands || [];
+    const BRANDS = (config?.brands || []).sort((a, b) => a.localeCompare(b));
+    const MODELS = config?.models || {};
     const FUELS = config?.fuels || [];
     const TRANSMISSIONS = config?.transmissions || [];
     const ALL_SPECS = config?.allSpecs || [];
@@ -29,6 +31,7 @@ const Add = () => {
 
     const [title, setTitle] = useState("");
     const [brand, setBrand] = useState("");
+    const [model, setModel] = useState("");
     const [price, setPrice] = useState("");
     const [year, setYear] = useState(String(new Date().getFullYear()));
     const [mileage, setMileage] = useState("");
@@ -53,7 +56,7 @@ const Add = () => {
         fuel: "Petrol", transmission: "Automatic",
         drivetrain: "RWD", exterior: "", interior: "",
         vin: "", steering: "Left", customs: "Cleared",
-        owners: "", seats: "4",
+        owners: "", seats: "5",
     });
 
     const [equipment, setEquipment] = useState({});
@@ -79,7 +82,7 @@ const Add = () => {
             return init;
         });
         if (isNew) {
-            setBrand(prev => prev || config.brands?.[0] || "");
+            setBrand(prev => prev || "");
             setFuel(prev => prev || config.fuels?.[0] || "");
             setTransmission(prev => prev || config.transmissions?.[0] || "");
             setSpecsVals(prev => ({
@@ -99,6 +102,7 @@ const Add = () => {
                 const data = await res.json();
                 setTitle(data.title || "");
                 setBrand(data.brand || "");
+                setModel(data.model || "");
                 setPrice(data.price || "");
                 setYear(data.year || "");
                 setMileage(data.mileage || "");
@@ -122,7 +126,7 @@ const Add = () => {
                     steering:     data.specs?.steering || "Left",
                     customs:      data.specs?.customs || "Cleared",
                     owners:       data.specs?.owners || "",
-                    seats:        data.specs?.seats || "4",
+                    seats:        data.specs?.seats || "5",
                 });
                 if (data.equipment) {
                     setEquipment(prev => {
@@ -149,8 +153,18 @@ const Add = () => {
         });
     }, [activeImg, images]);
 
+    useEffect(() => {
+        const handleWheel = (e) => {
+            if(document.activeElement.type === "number") {
+                document.activeElement.blur();
+            }
+        };
+        document.addEventListener("wheel", handleWheel, { passive: false });
+        return () => document.removeEventListener("wheel", handleWheel);
+    }, []);
+
     const buildPayload = (isPublish = false) => ({
-        title, brand, price: Number(price), year: Number(year),
+        title, brand, model, price: Number(price), year: Number(year),
         mileage, fuel, transmission, location, phone, description, images,
         specs: {
             engine: specsVals.engine,
@@ -460,46 +474,93 @@ const Add = () => {
                         </div>
 
                         <div className="add-field">
-                            <label className="add-label">Location <span style={{ color: "#e11d48" }}>*</span></label>
-                            <input
-                                className="add-input"
-                                placeholder="e.g. Tbilisi"
-                                value={location}
-                                onChange={e => setLocation(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="add-field">
-                            <label className="add-label">Price (USD) <span style={{ color: "#e11d48" }}>*</span></label>
-                            <input
-                                className={`add-input ${priceError ? "add-input-error" : ""}`}
-                                type="number"
-                                placeholder="84500"
-                                value={price}
-                                onChange={e => { setPrice(e.target.value); setPriceError(""); }}
-                            />
+                            <label className="add-label">Price <span style={{ color: "#e11d48" }}>*</span></label>
+                            <div style={{ position: "relative" }}>
+                                <input
+                                    className={`add-input ${priceError ? "add-input-error" : ""}`}
+                                    type="number"
+                                    placeholder="e.g. 38500"
+                                    value={price}
+                                    onChange={e => { 
+                                        setPrice(e.target.value); 
+                                        setPriceError(""); 
+                                    }}
+                                />
+                                <span style={{
+                                    position: "absolute",
+                                    right: 14,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    fontSize: 15,
+                                    fontWeight: 600,
+                                    color: "var(--text-secondary)",
+                                    pointerEvents: "none",
+                                }}>$</span>
+                            </div>
                             {priceError && <span className="add-error">{priceError}</span>}
-                            {price > 0 && <div className="cdh-price" style={{ marginTop: 4, fontSize: 32 }}>{fmt(price)}</div>}
                         </div>
 
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                             <div className="add-field">
-                                <label className="add-label">Brand <span style={{ color: "#e11d48" }}>*</span></label>
-                                <select className="add-select" value={brand} onChange={e => setBrand(e.target.value)}>
-                                    {BRANDS.map(b => <option key={b}>{b}</option>)}
-                                </select>
+                                <label className="add-label">Location <span style={{ color: "#e11d48" }}>*</span></label>
+                                <input
+                                    className="add-input"
+                                    placeholder="e.g. Tbilisi"
+                                    value={location}
+                                    onChange={e => setLocation(e.target.value)}
+                                />
                             </div>
                             <div className="add-field">
                                 <label className="add-label">Year <span style={{ color: "#e11d48" }}>*</span></label>
-                                <input
-                                    className="add-input"
-                                    type="number"
-                                    value={year}
-                                    onChange={e => { 
-                                        setYear(e.target.value); 
-                                        setSpecsVals(p => ({ ...p, year: e.target.value })); 
+                                <div className="add-brand-select">
+                                    <SpecSelect 
+                                        value={year}
+                                        options={Array.from(
+                                            { length: new Date().getFullYear() - 1900 + 1 },
+                                            (_, i) => String(new Date().getFullYear() - i)
+                                        )}
+                                        onChange={val => { 
+                                            setYear(val); 
+                                            setSpecsVals(p => ({ ...p, year: val})); 
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div className="add-field">
+                                <label className="add-label">Brand <span style={{ color: "#e11d48" }}>*</span></label>
+                                <div className="add-brand-select">
+                                    <SpecSelect 
+                                        value={brand}
+                                        options={BRANDS}
+                                        disabled={false}
+                                        onChange={val => {
+                                            setBrand(val);
+                                            setModel("");
+                                        }}
+                                        placeholder="Select Brand"
+                                    />
+                                </div>
+                            </div>
+                            <div className="add-field">
+                                <label className="add-label">Model <span style={{ color: "#e11d48" }}>*</span></label>
+                                <div 
+                                    className="add-brand-select"
+                                    style={{
+                                        opacity: brand ? 1 : 0.7,
+                                        pointerEvents: brand ? "all" : "none",
+                                        transition: "opacity 0.3s"
                                     }}
-                                />
+                                >
+                                    <SpecSelect 
+                                        value={model}
+                                        options={(MODELS[brand] || []).slice().sort((a, b) => a.localeCompare(b))}
+                                        disabled={!brand}
+                                        onChange={setModel}
+                                        placeholder={brand ? "Select Model" : "Select Brand first"}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -520,7 +581,7 @@ const Add = () => {
                             <label className="add-label">Photos / video</label>
                             <button
                                 className="add-cancel-btn"
-                                style={{ width: "100%", padding: "11px 14px", textAlign: "left" }}
+                                style={{ width: "100%", padding: "11px 14px", textAlign: "left", color: "var(--text-secondary)"}}
                                 onClick={() => document.getElementById("file-upload-input").click()}
                             >
                                 📎 Upload photos or video
@@ -634,17 +695,17 @@ const Add = () => {
                             </div>
                         );
                         if (spec.key === "year") return specCard(
-                            <input 
-                                className="add-details-spec-input" 
-                                type="number" 
-                                min="1900"
-                                max={new Date().getFullYear()}
-                                value={specsVals.year || ""} 
+                            <SpecSelect
+                                value={specsVals.year || String(new Date().getFullYear())}
+                                options={Array.from(
+                                    { length: new Date().getFullYear() - 1900 + 1 },
+                                    (_, i) => String(new Date().getFullYear() - i)
+                                )}
                                 disabled={isRemoved}
-                                onChange={e => { 
-                                    setSpecsVals(p => ({ ...p, year: e.target.value })); 
-                                    setYear(e.target.value); 
-                                }} 
+                                onChange={val => {
+                                    setSpecsVals(p => ({ ...p, year: val }));
+                                    setYear(val);
+                                }}
                             />
                         );
                         if (spec.key === "mileage") return specCard(
@@ -652,6 +713,7 @@ const Add = () => {
                                 className="add-details-spec-input" 
                                 type="number" 
                                 min="0"
+                                placeholder="32850"
                                 value={specsVals.mileage || ""} 
                                 disabled={isRemoved}
                                 onChange={e => { 
@@ -689,7 +751,7 @@ const Add = () => {
                                 className="add-details-spec-input" 
                                 type="number" 
                                 min="0" 
-                                placeholder="1"
+                                placeholder="3"
                                 value={specsVals.owners || ""} 
                                 disabled={isRemoved}
                                 onChange={e => setSpecsVals(p => ({ ...p, owners: e.target.value }))} />
@@ -699,9 +761,20 @@ const Add = () => {
                                 className="add-details-spec-input" 
                                 type="number" 
                                 min="1"
-                                value={specsVals.seats ?? "4"} 
+                                value={specsVals.seats ?? "5"} 
                                 disabled={isRemoved}
-                                onChange={e => setSpecsVals(p => ({ ...p, seats: String(Math.max(1, Number(e.target.value))) }))} />
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === "") {
+                                        setSpecsVals(p => ({ ...p, seats: ""}));
+                                        return;
+                                    }
+                                    setSpecsVals(p => ({
+                                        ...p,
+                                        seats: String(Math.max(1, Number(val)))
+                                    }));
+                                }} 
+                            />
                         );
                         return specCard(
                             <input 
@@ -716,7 +789,7 @@ const Add = () => {
             </section>
 
             <section className="eq-section">
-                <h2 className="eq-title">Features &amp; equipment</h2>
+                <h2 className="eq-title">Features & equipment</h2>
                 <div className="eq-grid">
                     {EQUIPMENT_CATS.map(cat => (
                         <div key={cat.key} className="eq-card">
@@ -724,53 +797,43 @@ const Add = () => {
                                 <img src={cat.icon} alt="" className="eq-icon" />
                                 <span className="eq-cat-label">{cat.label}</span>
                             </div>
-                            <div className="add-details-eq-chips">
-                                {cat.suggestions.map(s => {
-                                    const active = equipment[cat.key]?.includes(s);
-                                    const removed = removedEquip[cat.key]?.includes(s);
-                                    if (removed && !active) return null;
+                            <ul className="eq-list">
+                                {[...cat.suggestions].sort((a, b) => {
+                                    const aActive = equipment[cat.key]?.includes(a) ? 1 : 0;
+                                    const bActive = equipment[cat.key]?.includes(b) ? 1 : 0;
+                                    return bActive - aActive;
+                                }).map(item => {
+                                    const active = equipment[cat.key]?.includes(item);
                                     return (
-                                        <button 
-                                            key={s} 
-                                            className={`add-details-eq-chip ${active ? "active" : ""}`} 
-                                            onClick={() => toggleEquip(cat.key, s)}
+                                        <li
+                                            key={item}
+                                            className="eq-item"
+                                            onClick={() => toggleEquip(cat.key, item)}
+                                            style={{
+                                                justifyContent: "space-between",
+                                                opacity: active ? 1 : 0.35,
+                                                transition: "opacity 0.25s",
+                                                cursor: "pointer"
+                                            }}
                                         >
-                                            {active ? "✓ " : ""}{s}
-                                        </button>
+                                            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <img src="/verified.png" alt="" className="eq-check" />
+                                                {item}
+                                            </span>
+                                            <button
+                                                className="add-details-eq-remove"
+                                                onClick={e => e.stopPropagation()}
+                                                style={{
+                                                    fontSize: 18,
+                                                    color: active ? "#e11d48" : "var(--text-secondary)",
+                                                    fontWeight : 600 
+                                                }}
+                                            >
+                                                {active ? "-" : "+"}
+                                            </button>
+                                        </li>
                                     );
                                 })}
-                            </div>
-                            <div style={{ display: "flex", gap: 7 }}>
-                                <input
-                                    className="add-input"
-                                    style={{ flex: 1, padding: "7px 11px", fontSize: 12.5, borderRadius: 9 }}
-                                    placeholder="Add custom feature..."
-                                    value={newEquipInput[cat.key] || ""}
-                                    onChange={e => setNewEquipInput(p => ({ ...p, [cat.key]: e.target.value }))}
-                                    onKeyDown={e => e.key === "Enter" && addCustomEquip(cat.key)}
-                                />
-                                <button 
-                                    className="add-details-eq-add-btn" 
-                                    onClick={() => addCustomEquip(cat.key)}
-                                >+</button>
-                            </div>
-                            <ul className="eq-list">
-                                {(equipment[cat.key] || []).map(item => (
-                                    <li 
-                                        key={item} 
-                                        className="eq-item" 
-                                        style={{ justifyContent: "space-between" }}
-                                    >
-                                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <img src="/verified.png" alt="" className="eq-check" />
-                                            {item}
-                                        </span>
-                                        <button 
-                                            className="add-details-eq-remove" 
-                                            onClick={() => removeEquip(cat.key, item)}
-                                        >×</button>
-                                    </li>
-                                ))}
                             </ul>
                         </div>
                     ))}
@@ -778,7 +841,7 @@ const Add = () => {
             </section>
 
             <section className="about-car-section">
-                <div className="about-car-inner">
+                <div className="about-car-inner add-car-inner">
                     <div className="about-car-card">
                         <h2 className="about-car-title">About this vehicle</h2>
                         <textarea
@@ -787,23 +850,11 @@ const Add = () => {
                             placeholder="Tell buyers what makes this car special..."
                             value={description}
                             onChange={e => setDescription(e.target.value)}
+                            onInput={e => {
+                                e.target.style.height = "auto";
+                                e.target.style.height = e.target.scrollHeight + "px";
+                            }}
                         />
-                    </div>
-                    <div className="about-car-card about-market-card">
-                        <div className="market-head">
-                            <h2 className="about-car-title">Market insight</h2>
-                            <span className="market-badge">✦ Preview</span>
-                        </div>
-                        <div className="market-price">{fmt(price)}</div>
-                        <p className="market-based">Price updates as you type</p>
-                        <div className="market-range-wrap">
-                            <div className="market-track">
-                                <div className="market-dot" style={{ left: "50%" }} />
-                            </div>
-                            <div className="market-labels">
-                                <span>—</span><span>Your price</span><span>—</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>

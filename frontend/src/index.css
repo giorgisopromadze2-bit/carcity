@@ -2306,6 +2306,7 @@ body{
 }
 .add-input, .add-select, .add-textarea{
     font-family: inherit;
+    height: 50px;
     font-size: 14px;
     color: var(--text-primary);
     background-color: var(--bg);
@@ -2348,7 +2349,8 @@ body{
     padding-right: 36px;
 }
 .add-textarea{
-    resize: vertical;
+    resize: none;
+    overflow: hidden;
     min-height: 120px;
     line-height: 1.6;
 }
@@ -2359,6 +2361,7 @@ body{
     padding-top: 4px;
 }
 .add-submit-btn{
+    height: 50px;
     font-family: inherit;
     font-size: 14.5px;
     font-weight: 600;
@@ -2377,6 +2380,7 @@ body{
 }
 .add-cancel-btn{
     font-family: inherit;
+    height: 50px;
     font-size: 14.5px;
     font-weight: 600;
     color: var(--text-primary);
@@ -2432,7 +2436,7 @@ body{
     right: 4px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 10px;
+    font-size: 20px;
     transition: transform 0.3s;
     color: var(--text-secondary);
 }
@@ -2452,7 +2456,8 @@ body{
     background-color: var(--bg);
     border: 1.5px solid var(--border-btn);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-y: auto;
+    max-height: 220px;
     z-index: 100;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
@@ -2666,7 +2671,71 @@ body{
     background-color: rgba(255, 29, 72, 0.85);
     transform: scale(1.1);
 }
-
+.add-brand-select .spec-select{
+    width: 100%;
+}
+.add-brand-select .spec-select-btn{
+    width: 100%;
+    height: 50px;
+    min-height: 48px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    background-color: var(--bg);
+    border: 1.5px solid var(--border-btn);
+    border-radius: 12px;
+    padding: 11px 42px 11px 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s;
+    position: relative;
+}
+[data-theme = "dark"] .add-brand-select .spec-select-btn{
+    background-color: var(--bg-active);
+    border-color: var(--border-btn);
+}
+.add-brand-select .spec-select-btn:hover{
+    border-color: var(--border-btn-hover);
+}
+.add-brand-select .spec-select-btn:focus{
+    border-color: #3ed0e4;
+    box-shadow:  0 0 0 3px rgba(62, 208, 228, 0.12);
+}
+.add-brand-select.spec-select-arrow{
+    right: 14px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.add-brand-select .spec-select-dropdown{
+    top: calc(100% + 6px);
+    background-color: var(--bg);
+    border: 1.5px solid var(--border-btn);
+    border-radius: 14px;
+    overflow-y: auto;
+    max-height: 220px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+[data-theme="dark"] .add-brand-select .spec-select-dropdown{
+    background-color: #18181b;
+    border-color: var(--border);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    opacity: 1;
+    backdrop-filter: none;
+}
+.add-brand-select .spec-select-option{
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.25s, color 0.25s;
+}
+.add-brand-select .spec-select-option:hover{
+    background-color: var(--bg-hover);
+}
+.add-brand-select .spec-select-option.active{
+    background-color: rgba(62, 208, 228, 0.08);
+    color: #3ed0e4;
+}
 .add-details-spec-card {
     position: relative;
     display: flex;
@@ -2763,9 +2832,30 @@ body{
     cursor: not-allowed;
     border-color: transparent;
 }
-[data-theme="dark"] input[type="number"]::-webkit-inner-spin-button,
-[data-theme="dark"] input[type="number"]::-webkit-outer-spin-button {
-    filter: invert(1);
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    appearance: textfield;
+}
+.spec-select-dropdown::-webkit-scrollbar {
+    width: 4px;
+}
+.spec-select-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+.spec-select-dropdown::-webkit-scrollbar-thumb {
+    background-color: var(--border-btn);
+    border-radius: 100px;
+}
+.spec-select-dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: var(--border-btn-hover);
+}
+.add-car-inner{
+    display: block;
 }
 
 

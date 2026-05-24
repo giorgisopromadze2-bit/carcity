@@ -1,16 +1,17 @@
 import { useState } from "react";
 
-const SpecSelect = ({ value, options, disabled, onChange }) => {
+const SpecSelect = ({ value, options, disabled, onChange, placeholder = "Select..." }) => {
     const [open, setOpen] = useState(false);
 
     return ( 
         <div className="spec-select">
             <button
+                type="button"
                 className="spec-select-btn"
                 disabled={disabled}
                 onClick={() => !disabled && setOpen(p => !p)}
             >
-                {value}
+                {value || placeholder}
                 <span className={`spec-select-arrow ${open ? "open" : ""}`}>▾</span>
             </button>
             {open && (
