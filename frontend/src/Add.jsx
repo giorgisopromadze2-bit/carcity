@@ -25,6 +25,7 @@ const Add = () => {
     const [publishing, setPublishing] = useState(false);
     const [saved, setSaved] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     const [brand, setBrand] = useState("");
     const [model, setModel] = useState("");
@@ -162,7 +163,7 @@ const Add = () => {
         location,
         contact: { phone },
         description, 
-        images,
+        images: images.map(({ url, public_id }) => ({ url, public_id })),
         fuel: specsVals.fuel,
         transmission: specsVals.transmission,
         drivetrain: specsVals.drivetrain,
@@ -271,7 +272,19 @@ const Add = () => {
         }
     };
 
-    const removeImage = (i) => {
+    const removeImage = async (i) => {
+        const img = images[i];
+
+        if (img.public_id) {
+            try {
+                await fetch("http://localhost:5000/api/upload", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ public_id: img.public_id })
+                });
+            } catch {}
+        }
+
         setImages(p => p.filter((_, idx) => idx !== i));
         if (mainImgIdx >= i && mainImgIdx > 0) setMainImgIdx(p => p - 1);
         setActiveImg(0);
@@ -306,7 +319,7 @@ const Add = () => {
         </div>
     );
 
-    const displayImg = images[activeImg] || null;
+    const displayImg = images[activeImg]?.url || null;
 
     return (
         <div className="car-main">
@@ -367,10 +380,43 @@ const Add = () => {
                             accept="image/*,video/*"
                             multiple
                             style={{ display: "none" }}
-                            onChange={e => {
-                                Array.from(e.target.files).forEach(file => {
-                                    setImages(p => [...p, URL.createObjectURL(file)]);
-                                });
+                            onChange={ async e => {
+                                const files = Array.from(e.target.files);
+                                if (files.length === 0) return;
+
+                                const newFiles = files.filter(file => 
+                                    !images.some(img => 
+                                        img._tempKey === `${file.name}-${file.size}`
+                                    )
+                                );
+
+                                if (newFiles.length === 0) {
+                                    e.target.value = "";
+                                    return;
+                                }
+
+                                setUploading(true);
+                                setImagesError("");
+                                
+                                const formData = new FormData();
+                                newFiles.forEach(file => formData.append("images", file));
+
+                                try{
+                                    const res = await fetch("http://localhost:5000/api/upload", {
+                                        method: "POST",
+                                        body: formData
+                                    });
+                                    const data = await res.json();
+                                    const withKeys = data.urls.map((img, i) => ({
+                                        ...img,
+                                        _tempKey: `${newFiles[i].name}-${newFiles[i].size}`
+                                    }));
+                                    setImages(p => [...p, ...withKeys]);
+                                } catch {
+                                    alert("Upload failed.")
+                                } finally {
+                                    setUploading(false);
+                                }
                                 e.target.value = "";
                             }}
                         />
@@ -405,7 +451,7 @@ const Add = () => {
                                             onClick={() => setActiveImg(i)}
                                             style={{ width: "100%", height: "100%", margin: 0 }}
                                         >
-                                            <img src={img} alt="" className="cdh-thumb-img" />
+                                            <img src={img.url} alt="" className="cdh-thumb-img" />
                                         </button>
 
                                         <button 
@@ -577,10 +623,17 @@ const Add = () => {
                             <label className="add-label">Photos / video</label>
                             <button
                                 className="add-cancel-btn"
-                                style={{ width: "100%", padding: "11px 14px", textAlign: "left", color: "var(--text-secondary)"}}
-                                onClick={() => document.getElementById("file-upload-input").click()}
+                                style={{ 
+                                    width: "100%", 
+                                    padding: "11px 14px", 
+                                    textAlign: "left", 
+                                    color: "var(--text-secondary)"
+                                }}
+                                onClick={() => {
+                                    if (!uploading) document.getElementById("file-upload-input").click();
+                                }}
                             >
-                                📎 Upload photos or video
+                                {uploading ? "⏳ Uploading..." : "📎 Upload photos or video"}
                             </button>
                             {imagesError && <span className="add-error">{imagesError}</span>}
                         </div>

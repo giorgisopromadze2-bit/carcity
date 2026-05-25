@@ -15,7 +15,10 @@ const carSchema = new mongoose.Schema({
         default: "pending"
     },
 
-    images: { type: [String], default: [] },
+    images: [{
+        url: { type: String },
+        public_id: { type: String }
+    }],
 
     mileage:      { type: Number, min: 0 },
     engine:       { type: String, trim: true },     
