@@ -2,9 +2,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useConfig } from "./useConfig";
 import { useEffect, useRef, useState } from "react";
 import SpecSelect from "./SpecSelect";
-import { style } from "framer-motion/client";
-
-const fmt = (n) => "$" + Number(n || 0).toLocaleString("en-US");
 
 const Add = () => {
     const { id } = useParams();
@@ -29,38 +26,44 @@ const Add = () => {
     const [saved, setSaved] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const [title, setTitle] = useState("");
     const [brand, setBrand] = useState("");
     const [model, setModel] = useState("");
     const [price, setPrice] = useState("");
-    const [year, setYear] = useState(String(new Date().getFullYear()));
-    const [mileage, setMileage] = useState("");
-    const [fuel, setFuel] = useState("");
-    const [transmission, setTransmission] = useState("");
     const [location, setLocation] = useState("");
     const [phone, setPhone] = useState("");
     const [description, setDescription] = useState("");
+
     const [phoneError, setPhoneError] = useState("");
-    const [titleError, setTitleError] = useState("");
     const [priceError, setPriceError] = useState("");
+    const [brandError, setBrandError] = useState("");
+    const [modelError, setModelError] = useState("");
+    const [mileageError, setMileageError] = useState("");
+    const [imagesError, setImagesError] = useState("");
+    
 
     const [images, setImages] = useState([]);
     const [mainImgIdx, setMainImgIdx] = useState(0);
     const [activeImg, setActiveImg] = useState(0);
-    const [imgInput, setImgInput] = useState("");
 
     const [removedSpecs, setRemovedSpecs] = useState([]);
     const [specsVals, setSpecsVals] = useState({
         year: String(new Date().getFullYear()),
-        mileage: "", engine: "", power: "",
-        fuel: "Petrol", transmission: "Automatic",
-        drivetrain: "RWD", exterior: "", interior: "",
-        vin: "", steering: "Left", customs: "Cleared",
-        owners: "", seats: "5",
+        mileage: "", 
+        engine: "", 
+        power: "",
+        fuel: "Petrol", 
+        transmission: "Automatic",
+        drivetrain: "RWD", 
+        exterior: "", 
+        interior: "",
+        vin: "", 
+        steering: "Left", 
+        customs: "Cleared",
+        owners: "", 
+        seats: "5"
     });
 
     const [equipment, setEquipment] = useState({});
-    const [removedEquip, setRemovedEquip] = useState({});
     const [newEquipInput, setNewEquipInput] = useState({});
 
     useEffect(() => {
@@ -71,20 +74,12 @@ const Add = () => {
             cats.forEach(c => { init[c.key] = prev[c.key] || []; });
             return init;
         });
-        setRemovedEquip(prev => {
-            const init = {};
-            cats.forEach(c => { init[c.key] = prev[c.key] || []; });
-            return init;
-        });
         setNewEquipInput(prev => {
             const init = {};
             cats.forEach(c => { init[c.key] = prev[c.key] || ""; });
             return init;
         });
         if (isNew) {
-            setBrand(prev => prev || "");
-            setFuel(prev => prev || config.fuels?.[0] || "");
-            setTransmission(prev => prev || config.transmissions?.[0] || "");
             setSpecsVals(prev => ({
                 ...prev,
                 fuel: prev.fuel || config.fuels?.[0] || "Petrol",
@@ -100,33 +95,28 @@ const Add = () => {
                 const res = await fetch(`http://localhost:5000/api/cars/${id}`);
                 if (!res.ok) throw new Error("not found");
                 const data = await res.json();
-                setTitle(data.title || "");
                 setBrand(data.brand || "");
                 setModel(data.model || "");
                 setPrice(data.price || "");
-                setYear(data.year || "");
-                setMileage(data.mileage || "");
-                setFuel(data.fuel || "");
-                setTransmission(data.transmission || "");
                 setLocation(data.location || "");
-                setPhone(data.phone || "");
+                setPhone(data.contact?.phone || "");
                 setDescription(data.description || "");
                 setImages(data.images || []);
                 setSpecsVals({
                     year:         String(data.year || ""),
                     mileage:      data.mileage || "",
-                    engine:       data.specs?.engine || "",
-                    power:        data.specs?.power || "",
+                    engine:       data.engine || "",
+                    power:        data.power || "",
                     fuel:         data.fuel || "Petrol",
                     transmission: data.transmission || "Automatic",
-                    drivetrain:   data.specs?.drivetrain || "RWD",
-                    exterior:     data.specs?.exterior || "",
-                    interior:     data.specs?.interior || "",
-                    vin:          data.specs?.vin || "",
-                    steering:     data.specs?.steering || "Left",
-                    customs:      data.specs?.customs || "Cleared",
-                    owners:       data.specs?.owners || "",
-                    seats:        data.specs?.seats || "5",
+                    drivetrain:   data.drivetrain || "RWD",
+                    exterior:     data.exterior || "",
+                    interior:     data.interior || "",
+                    vin:          data.vin || "",
+                    steering:     data.steering || "Left",
+                    customs:      data.customs || "Cleared",
+                    owners:       data.owners || "",
+                    seats:        String(data.seats || "5")
                 });
                 if (data.equipment) {
                     setEquipment(prev => {
@@ -164,32 +154,57 @@ const Add = () => {
     }, []);
 
     const buildPayload = (isPublish = false) => ({
-        title, brand, model, price: Number(price), year: Number(year),
-        mileage, fuel, transmission, location, phone, description, images,
-        specs: {
-            engine: specsVals.engine,
-            power: specsVals.power ? specsVals.power + "hp" : "",
-            drivetrain: specsVals.drivetrain,
-            exterior: specsVals.exterior,
-            interior: specsVals.interior,
-            vin: specsVals.vin,
-            steering: specsVals.steering,
-            customs: specsVals.customs,
-            owners: specsVals.owners,
-            seats: specsVals.seats,
-        },
+        brand, 
+        model, 
+        price: Number(price), 
+        year: Number(specsVals.year),
+        mileage: specsVals.mileage ? Number(specsVals.mileage) : undefined, 
+        location,
+        contact: { phone },
+        description, 
+        images,
+        fuel: specsVals.fuel,
+        transmission: specsVals.transmission,
+        drivetrain: specsVals.drivetrain,
+        engine: specsVals.engine,
+        power: specsVals.power ? Number(specsVals.power) : undefined,
+        exterior: specsVals.exterior,
+        interior: specsVals.interior,
+        vin: specsVals.vin,
+        steering: specsVals.steering,
+        customs: specsVals.customs,
+        owners: specsVals.owners ? Number(specsVals.owners) : undefined,
+        seats: specsVals.seats ? Number(specsVals.seats) : undefined,
         equipment,
-        ...(isPublish ? { published: true } : {}),
+        status: isPublish ? "active" : "pending"
     });
 
     const validate = (requirePhone = false) => {
         let valid = true;
-        if (!title.trim()) { setTitleError("Title is required"); valid = false; }
-        else setTitleError("");
-        if (!price || isNaN(price) || Number(price) <= 0) { setPriceError("Enter a valid price"); valid = false; }
-        else setPriceError("");
-        if (requirePhone && !phone.trim()) { setPhoneError("Phone number is required to publish"); valid = false; }
-        else if (requirePhone) setPhoneError("");
+        if (!price || isNaN(price) || Number(price) <= 0) { 
+            setPriceError("Enter a valid price"); 
+            valid = false; 
+        } else setPriceError("");
+        if (!brand) { 
+            setBrandError("Brand is required"); 
+            valid = false; 
+        } else setBrandError("");
+        if (!model) {
+            setModelError("Model is required");
+            valid = false;
+        } else setModelError("");
+        if (!specsVals.mileage || isNaN(specsVals.mileage) || Number(specsVals.mileage) < 0) { 
+            setMileageError("Mileage is required"); 
+            valid = false; 
+        } else setMileageError("");
+        if (images.length === 0) { 
+            setImagesError("At least one photo is required"); 
+            valid = false; 
+        } else setImagesError("");
+        if (requirePhone && !phone.trim()) { 
+            setPhoneError("Phone number is required to publish"); 
+            valid = false; 
+        } else if (requirePhone) setPhoneError("");
         return valid;
     };
 
@@ -256,13 +271,6 @@ const Add = () => {
         }
     };
 
-    const addImage = () => {
-        const url = imgInput.trim();
-        if (!url) return;
-        setImages(p => [...p, url]);
-        setImgInput("");
-    };
-
     const removeImage = (i) => {
         setImages(p => p.filter((_, idx) => idx !== i));
         if (mainImgIdx >= i && mainImgIdx > 0) setMainImgIdx(p => p - 1);
@@ -281,14 +289,6 @@ const Add = () => {
             const list = p[cat] || [];
             return { ...p, [cat]: list.includes(item) ? list.filter(i => i !== item) : [...list, item] };
         });
-    };
-
-    const removeEquip = (cat, item) => {
-        setEquipment(p => ({ ...p, [cat]: p[cat].filter(i => i !== item) }));
-        const catDef = EQUIPMENT_CATS.find(c => c.key === cat);
-        if (catDef?.suggestions.includes(item)) {
-            setRemovedEquip(p => ({ ...p, [cat]: [...(p[cat] || []), item] }));
-        }
     };
 
     const addCustomEquip = (cat) => {
@@ -341,7 +341,7 @@ const Add = () => {
                     <div className="cdh-gallery">
                         <div className="cdh-main-wrap">
                             {displayImg
-                                ? <img src={displayImg} alt={title} className="cdh-main-img" />
+                                ? <img src={displayImg} className="cdh-main-img" />
                                 : <div className="add-details-no-img" onClick={() => document.getElementById("file-upload-input").click()}>
                                     <div className="add-details-no-img-icon">+</div>
                                     <span className="add-details-no-img-text">Add photos or video</span>
@@ -368,10 +368,8 @@ const Add = () => {
                             multiple
                             style={{ display: "none" }}
                             onChange={e => {
-                                const files = Array.from(e.target.files);
-                                files.forEach(file => {
-                                    const url = URL.createObjectURL(file);
-                                    setImages(p => [...p, url]);
+                                Array.from(e.target.files).forEach(file => {
+                                    setImages(p => [...p, URL.createObjectURL(file)]);
                                 });
                                 e.target.value = "";
                             }}
@@ -412,7 +410,10 @@ const Add = () => {
 
                                         <button 
                                             className={`add-details-thumb-star ${mainImgIdx === i ? "is-main" : ""}`}
-                                            onClick={() => { setMainImgIdx(i); setActiveImg(i); }}
+                                            onClick={() => { 
+                                                setMainImgIdx(i); 
+                                                setActiveImg(i); 
+                                            }}
                                             onMouseEnter={e => {
                                                 const r = e.currentTarget.getBoundingClientRect();
                                                 setTooltip({ text: mainImgIdx === i ? "Main photo" : "Set as main", x: r.left + r.width / 2, y: r.top - 8, visible: true });
@@ -459,18 +460,7 @@ const Add = () => {
                     <div className="cdh-info">
                         <div className="cdh-tags">
                             {brand && <span className="cdh-tag cdh-tag-brand">{brand}</span>}
-                            {year && <span className="cdh-tag">{year}</span>}
-                        </div>
-
-                        <div className="add-field">
-                            <label className="add-label">Title <span style={{ color: "#e11d48" }}>*</span></label>
-                            <input
-                                className={`add-input ${titleError ? "add-input-error" : ""}`}
-                                placeholder="e.g. BMW M4 Competition"
-                                value={title}
-                                onChange={e => { setTitle(e.target.value); setTitleError(""); }}
-                            />
-                            {titleError && <span className="add-error">{titleError}</span>}
+                            {specsVals.year && <span className="cdh-tag">{specsVals.year}</span>}
                         </div>
 
                         <div className="add-field">
@@ -514,15 +504,12 @@ const Add = () => {
                                 <label className="add-label">Year <span style={{ color: "#e11d48" }}>*</span></label>
                                 <div className="add-brand-select">
                                     <SpecSelect 
-                                        value={year}
+                                        value={specsVals.year}
                                         options={Array.from(
                                             { length: new Date().getFullYear() - 1900 + 1 },
                                             (_, i) => String(new Date().getFullYear() - i)
                                         )}
-                                        onChange={val => { 
-                                            setYear(val); 
-                                            setSpecsVals(p => ({ ...p, year: val})); 
-                                        }}
+                                        onChange={val => setSpecsVals(p => ({ ...p, year: val}))}
                                     />
                                 </div>
                             </div>
@@ -538,9 +525,11 @@ const Add = () => {
                                         onChange={val => {
                                             setBrand(val);
                                             setModel("");
+                                            setBrandError("");
                                         }}
                                         placeholder="Select Brand"
                                     />
+                                    {brandError && <span className="add-error">{brandError}</span>}
                                 </div>
                             </div>
                             <div className="add-field">
@@ -557,10 +546,14 @@ const Add = () => {
                                         value={model}
                                         options={(MODELS[brand] || []).slice().sort((a, b) => a.localeCompare(b))}
                                         disabled={!brand}
-                                        onChange={setModel}
+                                        onChange={val => {
+                                            setModel(val);
+                                            setModelError("");
+                                        }}
                                         placeholder={brand ? "Select Model" : "Select Brand first"}
                                     />
                                 </div>
+                                {modelError && <span className="add-error">{modelError}</span>}
                             </div>
                         </div>
 
@@ -572,7 +565,10 @@ const Add = () => {
                                 className={`add-input ${phoneError ? "add-input-error" : ""}`}
                                 placeholder="+995 123-456-789"
                                 value={phone}
-                                onChange={e => { setPhone(e.target.value); setPhoneError(""); }}
+                                onChange={e => { 
+                                    setPhone(e.target.value); 
+                                    setPhoneError(""); 
+                                }}
                             />
                             {phoneError && <span className="add-error">{phoneError}</span>}
                         </div>
@@ -586,6 +582,7 @@ const Add = () => {
                             >
                                 📎 Upload photos or video
                             </button>
+                            {imagesError && <span className="add-error">{imagesError}</span>}
                         </div>
                     </div>
                 </div>
@@ -602,13 +599,14 @@ const Add = () => {
                     {ALL_SPECS.map(spec => {
                         const isRemoved = removedSpecs.includes(spec.key);
 
-                        const specCard = (children) => (
+                        const specCard = (children, error) => (
                             <div key={spec.key} className="car-spec-card add-details-spec-card" style={{ opacity: isRemoved ? 0.25 : 1 }}>
                                 <div className="car-spec-icon-wrap">
                                     <img src={spec.icon} alt="" className="car-spec-icon" />
                                 </div>
                                 <span className="car-spec-label">{spec.label}</span>
                                 {children}
+                                {error && <span className="add-error" style={{ fontSize: 11 }}>{error}</span>}
                                 <button
                                     className={`add-details-spec-toggle ${isRemoved ? "is-removed" : ""}`}
                                     title={isRemoved ? "Restore" : "Hide"}
@@ -622,11 +620,9 @@ const Add = () => {
                         if (spec.key === "fuel") return specCard(
                             <SpecSelect 
                                 value={specsVals.fuel || "Petrol"} 
-                                options={FUELS} disabled={isRemoved}
-                                onChange={val => { 
-                                    setSpecsVals(p => ({ ...p, fuel: val })); 
-                                    setFuel(val); 
-                                }} 
+                                options={FUELS} 
+                                disabled={isRemoved}
+                                onChange={val => setSpecsVals(p => ({ ...p, fuel: val }))} 
                             />
                         );
                         if (spec.key === "transmission") return specCard(
@@ -634,10 +630,7 @@ const Add = () => {
                                 value={specsVals.transmission || "Automatic"} 
                                 options={TRANSMISSIONS} 
                                 disabled={isRemoved}
-                                onChange={val => { 
-                                    setSpecsVals(p => ({ ...p, transmission: val })); 
-                                    setTransmission(val); 
-                                }} 
+                                onChange={val => setSpecsVals(p => ({ ...p, transmission: val }))} 
                             />
                         );
                         if (spec.key === "drivetrain") return specCard(
@@ -702,10 +695,7 @@ const Add = () => {
                                     (_, i) => String(new Date().getFullYear() - i)
                                 )}
                                 disabled={isRemoved}
-                                onChange={val => {
-                                    setSpecsVals(p => ({ ...p, year: val }));
-                                    setYear(val);
-                                }}
+                                onChange={val => setSpecsVals(p => ({ ...p, year: val }))}
                             />
                         );
                         if (spec.key === "mileage") return specCard(
@@ -718,9 +708,10 @@ const Add = () => {
                                 disabled={isRemoved}
                                 onChange={e => { 
                                     setSpecsVals(p => ({ ...p, mileage: e.target.value })); 
-                                    setMileage(e.target.value); 
+                                    setMileageError("");
                                 }} 
-                            />
+                            />,
+                            mileageError
                         );
                         if (spec.key === "exterior") return specCard(
                             <input 
@@ -765,15 +756,8 @@ const Add = () => {
                                 disabled={isRemoved}
                                 onChange={e => {
                                     const val = e.target.value;
-                                    if (val === "") {
-                                        setSpecsVals(p => ({ ...p, seats: ""}));
-                                        return;
-                                    }
-                                    setSpecsVals(p => ({
-                                        ...p,
-                                        seats: String(Math.max(1, Number(val)))
-                                    }));
-                                }} 
+                                    setSpecsVals(p => ({ ...p, seats: val === "" ? "" : String(Math.max(1, Number(val)))}));
+                                }}
                             />
                         );
                         return specCard(

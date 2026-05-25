@@ -36,4 +36,14 @@ router.put("/:key", async (req, res) => {
     }
 });
 
+router.delete("/:key", async (req, res) => {
+    try{
+        const deleted = await Config.findOneAndDelete({ key: req.params.key });
+        if (!deleted) return res.status(404).json({ message: "Not found" });
+        res.json({ message: "Deleted" });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+})
+
 module.exports = router;
