@@ -2,12 +2,12 @@ import { useNavigate } from "react-router-dom";
 
 const CarCard = ({ car, favorites, onToggleFavorite, darkMode }) => {
     const navigate = useNavigate();
-    const isFav = favorites.includes(car.id);
+    const isFav = favorites.includes(car._id);
 
     return (
-        <div className="car-card" onClick={() => navigate(`/cars/${car.id}`)}>
+        <div className="car-card" onClick={() => navigate(`/cars/${car._id}`)}>
             <div className="car-card-img-wrap">
-                <img src={car.image} alt={car.model} className="car-card-img" />
+                <img src={car.images?.[0].url || "./placeholder.jpg"} alt={car.model} className="car-card-img" />
 
                 <span className="car-card-brand">{car.brand}</span>
 
@@ -15,7 +15,7 @@ const CarCard = ({ car, favorites, onToggleFavorite, darkMode }) => {
                     className={`car-card-fav ${isFav ? "active" : ""}`}
                     onClick={(e) => {
                         e.stopPropagation();
-                        onToggleFavorite(car.id);
+                        onToggleFavorite(car._id);
                     }}
                 >
                     <img
@@ -30,7 +30,7 @@ const CarCard = ({ car, favorites, onToggleFavorite, darkMode }) => {
                     <span className="car-card-model">{car.model}</span>
 
                     <span className="car-card-year-color">
-                        {car.year} · {car.color}
+                        {car.year} · {car.exterior || "-"}
                     </span>
                 </div>
             </div>
@@ -51,17 +51,17 @@ const CarCard = ({ car, favorites, onToggleFavorite, darkMode }) => {
                 <div className="car-card-specs">
                     <span className="car-card-spec">
                         <img src="/mileage.png" alt="" className="spec-icon" />
-                        {car.mileage}
+                        {car.mileage ? `${car.mileage.toLocaleString()} km` : "-"}
                     </span>
 
                     <span className="car-card-spec">
                         <img src="/fuel.png" alt="" className="spec-icon" />
-                        {car.fuel}
+                        {car.fuel || "-"}
                     </span>
 
                     <span className="car-card-spec">
                         <img src="/hp.png" alt="" className="spec-icon" />
-                        {car.hp}
+                        {car.power ? `${car.power} hp` : "-"}
                     </span>
                 </div>
             </div>

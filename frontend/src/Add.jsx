@@ -355,10 +355,20 @@ const Add = () => {
                         <div className="cdh-main-wrap">
                             {displayImg
                                 ? <img src={displayImg} className="cdh-main-img" />
-                                : <div className="add-details-no-img" onClick={() => document.getElementById("file-upload-input").click()}>
-                                    <div className="add-details-no-img-icon">+</div>
-                                    <span className="add-details-no-img-text">Add photos or video</span>
-                                    <span className="add-details-no-img-sub">Click to upload from your device</span>
+                                : <div className="add-details-no-img" onClick={() => !uploading && document.getElementById("file-upload-input").click()}>
+                                    {uploading ? (
+                                        <>
+                                            <div className="upload-spinner" />
+                                            <span className="add-details-no-img-text">Uploading...</span>
+                                            <span className="add-details-no-img-sub">Please wait</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="add-details-no-img-icon">+</div>
+                                            <span className="add-details-no-img-text">Add photos or video</span>
+                                            <span className="add-details-no-img-sub">Click to upload from your device</span>
+                                        </>
+                                    )}
                                 </div>
                             }
                             <div className="cdh-badges">

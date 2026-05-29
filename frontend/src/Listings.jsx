@@ -1,23 +1,58 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { cars } from "./FeaturedCars";
 import { useEffect, useMemo, useState } from "react";
 import CarCard from "./CarCard";
-
-const BRANDS = ["BMW", "Porsche", "Tesla", "Mercedes", "Audi", "Toyota"];
-const TRANSMISSIONS = ["Automatic", "Manual"];
-const FUELS = ["Petrol", "Electric", "Hybrid", "Diesel"];
+import { useConfig } from "./useConfig";
 
 const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { config } = useConfig();
 
     const [inputVal, setInputVal] =useState(searchParams.get("search") || "");
     const [search, setSearch] = useState(searchParams.get("search") || "");
     const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || "All");
-    const [maxPrice, setMaxPrice] = useState(250000);
-    const [minYear, setMinYear] = useState(2018);
+    const [maxPrice, setMaxPrice] = useState(2500000);
+    const [minYear, setMinYear] = useState(1900);
     const [selectedTrans, setSelectedTrans] = useState("All");
     const [selectedFuel, setSelectedFuel] = useState("All");
+
+    const [cars, setCars] = useState([]);
+    const [carsLoading, setCarsLoading] = useState(false);
+
+    const priceMin = useMemo(() => cars.length ? Math.min(...cars.map(c => c.price)) : 0, [cars]);
+    const priceMax = useMemo(() => cars.length ? Math.max(...cars.map(c => c.price)) : 2500000, [cars]);
+    const yearMin  = useMemo(() => cars.length ? Math.min(...cars.map(c => c.year))  : 1900, [cars]);
+    const yearMax  = useMemo(() => cars.length ? Math.max(...cars.map(c => c.year))  : 2026, [cars]);
+
+    const TRANSMISSIONS = useMemo(() => config?.transmissions || [], [config]);
+    const FUELS = useMemo(() => config?.fuels || [], [config]);
+    const BRANDS = useMemo(() => {
+        const inDB = new Set(cars.map(c => c.brand));
+        return (config?.brands || []).filter(b => inDB.has(b)).sort((a, b) => a.localeCompare(b));
+    }, [cars, config]);
+
+    useEffect(() => {
+        const fetchCars = async () => {
+            try {
+                setCarsLoading(true);
+                const res = await fetch("http://localhost:5000/api/cars");
+                if (!res.ok) throw new Error("fetch failed");
+                const data = await res.json();
+                setCars(data);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setCarsLoading(false);
+            }
+        };
+        fetchCars();
+    }, []);
+
+    useEffect(() => {
+        if (cars.length === 0) return;
+        setMaxPrice(Math.max(...cars.map(C => C.price)));
+        setMinYear(Math.min(...cars.map(c => c.year)));
+    }, [cars]);
 
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "instant" });
@@ -43,21 +78,21 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                     !car.brand.toLowerCase().includes(q) &&
                     !car.model.toLowerCase().includes(q) &&
                     !String(car.year).includes(q) &&
-                    !car.color.toLowerCase().includes(q)
+                    !(car.exterior || "").toLowerCase().includes(q)
                 ) return false
             }
             return true;
         });
-    }, [selectedBrand, maxPrice, minYear, selectedTrans, selectedFuel, search]);
+    }, [cars, selectedBrand, maxPrice, minYear, selectedTrans, selectedFuel, search]);
 
     const handleReset = () => {
         setSelectedBrand("All");
-        setMaxPrice(250000);
-        setMinYear(2018);
+        setMaxPrice(priceMax);
+        setMinYear(yearMin);
         setSelectedTrans("All");
         setSelectedFuel("All");
         setSearch("");
-        setInputVal("")
+        setInputVal("");
     };
 
     const handleSearch = (e) => {
@@ -115,14 +150,14 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                                 <p className="filter-group-label">Max Price: ${maxPrice.toLocaleString()}</p>
                                 <input 
                                     type="range"
-                                    min={20000} 
-                                    max={250000}
+                                    min={priceMin} 
+                                    max={priceMax}
                                     value={maxPrice}
                                     onChange={(e) => {
                                         setMaxPrice(Number(e.target.value));
-                                        e.target.style.setProperty('--val', ((Number(e.target.value) -  20000) / (250000 - 20000) * 100) + '%');
+                                        e.target.style.setProperty('--val', ((Number(e.target.value) -  priceMin) / (priceMax - priceMin) * 100) + '%');
                                     }}
-                                    style={{'--val' : ((maxPrice - 20000) / (250000 - 20000) * 100) + '%'}}
+                                    style={{'--val' : ((maxPrice - priceMin) / (priceMax - priceMin) * 100) + '%'}}
                                     className="filter-range"
                                 />
                             </div>
@@ -131,15 +166,15 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                                 <p className="filter-group-label">Year: {minYear}</p>
                                 <input 
                                     type="range"
-                                    min={2015}
-                                    max={2026}
+                                    min={yearMin}
+                                    max={yearMax}
                                     step={1}
                                     value={minYear}
                                     onChange={(e) => {
                                         setMinYear(Number(e.target.value));
-                                        e.target.style.setProperty('--val', ((Number(e.target.value) - 2015) / (2026 - 2015) * 100) + '%');
+                                        e.target.style.setProperty('--val', ((Number(e.target.value) - yearMin) / (yearMax - yearMin) * 100) + '%');
                                     }}
-                                    style={{'--val': ((minYear - 2015) / (2026 - 2015) * 100) + '%'}} 
+                                    style={{'--val': ((minYear - yearMin) / (yearMax - yearMin) * 100) + '%'}} 
                                     className="filter-range"                   
                                 />
                             </div>
@@ -184,7 +219,9 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                         </div>
                     </aside>
                     <div className="listings-grid-wrap">
-                        {filtered.length === 0 ? (
+                        {carsLoading ? (
+                            <div style={{ padding: 40, color: "var(--text-secondary)" }}>Loading...</div>
+                        ) : filtered.length === 0 ? (
                             <div className="listings-empty">
                                 <img src="/sad.png" alt="" className="listings-empty-icon" />
                                 <p className="listings-empty-title">No matches found</p>
@@ -195,7 +232,7 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                             <div className="listings-grid">
                                 {filtered.map((car) => (
                                     <CarCard 
-                                        key={car.id}
+                                        key={car._id}
                                         car={car}
                                         favorites={favorites}
                                         onToggleFavorite={onToggleFavorite}
