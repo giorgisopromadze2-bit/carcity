@@ -17,7 +17,8 @@ const carSchema = new mongoose.Schema({
 
     images: [{
         url: { type: String },
-        public_id: { type: String }
+        public_id: { type: String },
+        isMain: { type: Boolean, default: false }
     }],
 
     mileage:      { type: Number, min: 0 },
@@ -31,8 +32,8 @@ const carSchema = new mongoose.Schema({
     vin:          { type: String, trim: true, uppercase: true },
     steering:     { type: String, enum: ["Left", "Right"], default: "Left" },
     customs:      { type: String, enum: ["Cleared", "Not Cleared"], default: "Cleared" }, 
-    owners:       { type: Number, min: 1 },
-    seats:        { type: Number, min: 1, max: 20 },
+    owners:       { type: Number, min: 0 },
+    seats:        { type: Number, min: 1, max: 100 },
 
     description:  { type: String, trim: true },
     equipment: {

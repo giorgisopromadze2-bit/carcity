@@ -16,7 +16,11 @@ router.get("/", async (req, res) => {
         if (fuel) filter.fuel = fuel;
         if (transmission) filter.transmission = transmission;
         if (drivetrain) filter.drivetrain = drivetrain;
-        filter.status = status || "active";
+        if (status) {
+            filter.status = status;
+        } else {
+            filter.status = "active";
+        }
         if (minPrice || maxPrice) {
             filter.price = {};
             if (minPrice) filter.price.$gte = Number(minPrice);

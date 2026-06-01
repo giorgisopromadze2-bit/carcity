@@ -102,6 +102,8 @@ const Add = () => {
                 setLocation(data.location || "");
                 setPhone(data.contact?.phone || "");
                 setDescription(data.description || "");
+                const mainIdx = data.images?.findIndex(img => img.isMain) ?? 0;
+                setMainImgIdx(mainIdx >= 0 ? mainIdx : 0);
                 setImages(data.images || []);
                 setSpecsVals({
                     year:         String(data.year || ""),
@@ -163,7 +165,7 @@ const Add = () => {
         location,
         contact: { phone },
         description, 
-        images: images.map(({ url, public_id }) => ({ url, public_id })),
+        images: images.map(({ url, public_id }, i) => ({ url, public_id, isMain: i === mainImgIdx })),
         fuel: specsVals.fuel,
         transmission: specsVals.transmission,
         drivetrain: specsVals.drivetrain,
@@ -205,7 +207,9 @@ const Add = () => {
         if (requirePhone && !phone.trim()) { 
             setPhoneError("Phone number is required to publish"); 
             valid = false; 
-        } else if (requirePhone) setPhoneError("");
+        } else {
+            setPhoneError("");
+        }
         return valid;
     };
 
@@ -845,7 +849,10 @@ const Add = () => {
                                 <span className="eq-cat-label">{cat.label}</span>
                             </div>
                             <ul className="eq-list">
-                                {[...cat.suggestions].sort((a, b) => {
+                                {[
+                                    ...cat.suggestions,
+                                    ...(equipment[cat.key] || []).filter(item => !cat.suggestions.includes(item))
+                                ].sort((a, b) => {
                                     const aActive = equipment[cat.key]?.includes(a) ? 1 : 0;
                                     const bActive = equipment[cat.key]?.includes(b) ? 1 : 0;
                                     return bActive - aActive;
@@ -882,6 +889,25 @@ const Add = () => {
                                     );
                                 })}
                             </ul>
+                            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                                <input
+                                    className="add-details-spec-input"
+                                    placeholder="Add custom..."
+                                    value={newEquipInput[cat.key] || ""}
+                                    onChange={e => setNewEquipInput(p => ({ ...p, [cat.key]: e.target.value}))}
+                                    onKeyDown={e => {
+                                        if (e.key === "Enter") addCustomEquip(cat.key);
+                                    }}
+                                    style={{ flex: 1 }}
+                                />
+                                <button 
+                                    className="add-cancel-btn"
+                                    style={{ padding: "6px 12px", fontSize: 13 }}
+                                    onClick={() => addCustomEquip(cat.key)}
+                                >
+                                    Add
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
