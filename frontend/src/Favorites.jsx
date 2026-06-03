@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import { cars } from "./FeaturedCars";
 import CarCard from "./CarCard";
 
 const Favorites = ({ favorites = [], onToggleFavorite, darkMode }) => {

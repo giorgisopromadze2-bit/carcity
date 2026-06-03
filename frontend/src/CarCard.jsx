@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 const CarCard = ({ car, favorites, onToggleFavorite, darkMode }) => {
     const navigate = useNavigate();
     const isFav = favorites.includes(car._id);
+    const mainImage = car.images.find(img => img.isMain) || car.images[0];
 
     return (
         <div className="car-card" onClick={() => navigate(`/cars/${car._id}`)}>
             <div className="car-card-img-wrap">
-                <img src={car.images?.[0].url || "./placeholder.jpg"} alt={car.model} className="car-card-img" />
+                <img src={mainImage.url} alt={car.model} className="car-card-img" />
 
                 <span className="car-card-brand">{car.brand}</span>
 
@@ -27,10 +28,10 @@ const CarCard = ({ car, favorites, onToggleFavorite, darkMode }) => {
                 </button>
 
                 <div className="car-card-overlay">
-                    <span className="car-card-model">{car.model}</span>
+                    <span className="car-card-model">{car.title || car.model}</span>
 
                     <span className="car-card-year-color">
-                        {car.year} · {car.exterior || "-"}
+                        {car.year}
                     </span>
                 </div>
             </div>

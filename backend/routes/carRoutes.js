@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Car = require("../models/Car");
 
-const generateTitle = ({ brand, model, year }) => [brand, model, year].filter(Boolean).join(" ").trim();
+const generateTitle = ({ brand, model }) => [brand, model].filter(Boolean).join(" ").trim();
 
 router.get("/", async (req, res) => {
     try{

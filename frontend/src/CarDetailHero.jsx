@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 
 const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
     const navigate = useNavigate();
-    const [activeImg, setActiveImg] = useState(0);
-    const isFav = favorites.includes(car.id);
-    const images = [car.image, car.image, car.image];
-    const monthlyEst = Math.round((car.price / 60) / 10) * 10;
+    const images = car.images || [];
+
+    const mainImgIdx = images.findIndex(img => img.isMain);
+    const [activeImg, setActiveImg] = useState(mainImgIdx >= 0 ? mainImgIdx : 0);
     
+    const isFav = favorites.includes(car._id);
+
     const prevImg = () => setActiveImg((p) => (p-1 + images.length) % images.length);
     const nextImg = () => setActiveImg((p) => (p+1) % images.length);
 
@@ -42,7 +44,7 @@ const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
                                 </button>
                                 <button 
                                     className={`cdh-action-btn cdh-fav-btn ${isFav ? "active" : ""}`}
-                                    onClick={() => onToggleFavorite(car.id)}
+                                    onClick={() => onToggleFavorite(car._id)}
                                     title="Save"
                                 >
                                     <img 
@@ -58,7 +60,7 @@ const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
                             <button className="cdh-arrow cdh-arrow-right" onClick={nextImg}>
                                 <img src="/arrow-right.png" alt="next" className="cdh-arrow-icon" />
                             </button>
-                            <img src={images[activeImg]} alt={car.model} className="cdh-main-img" />
+                            <img src={images[activeImg]?.url} alt={car.model} className="cdh-main-img" />
                             <span className="cdh-counter">{activeImg + 1} / {images.length}</span>
                         </div>
                         <div className="cdh-thumbs">
@@ -68,7 +70,7 @@ const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
                                     className={`cdh-thumb ${activeImg === i ? "active" : ""}`}
                                     onClick={() => setActiveImg(i)}
                                 >
-                                    <img src={img} alt="" className="cdh-thumb-img" />
+                                    <img src={img.url} alt="" className="cdh-thumb-img" />
                                 </button>
                             ))}
                         </div>
@@ -82,14 +84,13 @@ const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
                                 Fair Price
                             </span>
                         </div>
-                        <h1 className="cdh-title">{car.model}</h1>
+                        <h1 className="cdh-title">{car.title || car.model}</h1>
                         <p className="cdh-location">
                             <img src="/location.png" alt="" className="cdh-loc-icon" />
-                            Manhattan, NY
+                            {car.location || "-"}
                         </p>
                         <div className="cdh-price-block">
                             <span className="cdh-price">${car.price.toLocaleString()}</span>
-                            <p className="cdh-price-sub">Est. ${monthlyEst.toLocaleString()}/mo · 60 mo financing</p>
                         </div>
                         <div className="cdh-specs">
                             <div className="cdh-spec">
@@ -100,22 +101,22 @@ const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
                             <div className="cdh-spec">
                                 <img src="/mileage1.png" alt="" className="cdh-spec-icon" />
                                 <span className="cdh-spec-label">MILEAGE</span>
-                                <span className="cdh-spec-val">{car.mileage}</span>
+                                <span className="cdh-spec-val">{car.mileage ? `${car.mileage.toLocaleString()} km` : "-"}</span>
                             </div>
                             <div className="cdh-spec">
                                 <img src="/engine.png" alt="" className="cdh-spec-icon" />
                                 <span className="cdh-spec-label">ENGINE</span>
-                                <span className="cdh-spec-val">3.7L</span>
+                                <span className="cdh-spec-val">{car.engine || "-"}</span>
                             </div>
                             <div className="cdh-spec">
                                 <img src="/hp1.png" alt="" className="cdh-spec-icon" />
                                 <span className="cdh-spec-label">POWER</span>
-                                <span className="cdh-spec-val">{car.hp}</span>
+                                <span className="cdh-spec-val">{car.power ? `${car.power} hp` : "-"}</span>
                             </div>
                         </div>
                         <button className="cdh-btn-call">
                             <img src="/phone.png" alt="" className="cdh-btn-icon" />
-                            Call Seller
+                            {car.contact?.phone ? `Call ${car.contact.phone}` : "Call Seller"}
                         </button>
                         <div className="cdh-btn-row">
                             <button className="cdh-btn-secondary">
@@ -130,7 +131,7 @@ const CarDetailHero = ({ car, favorites, onToggleFavorite, darkMode }) => {
                         <div className="cdh-bottom-row">
                             <button 
                                 className={`cdh-bottom-btn ${isFav ? "saved" : ""}`}
-                                onClick={() => onToggleFavorite(car.id)}
+                                onClick={() => onToggleFavorite(car._id)}
                             >
                                 <img 
                                     src={isFav ? "/heart1.png" : "/black-heart.png"} 
