@@ -11,10 +11,16 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     const [inputVal, setInputVal] =useState(searchParams.get("search") || "");
     const [search, setSearch] = useState(searchParams.get("search") || "");
     const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || "All");
-    const [maxPrice, setMaxPrice] = useState(2500000);
-    const [minYear, setMinYear] = useState(1900);
+    const [brandSearch, setBrandSearch] = useState("");
+    const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+
+    const [priceRange, setPriceRange] = useState(null);
+    const [yearRange, setYearRange] = useState(null);
+    const [maxMileage, setMaxMileage] = useState(null);
     const [selectedTrans, setSelectedTrans] = useState("All");
     const [selectedFuel, setSelectedFuel] = useState("All");
+    const [selectedDrive, setSelectedDrive] = useState("All");
+    const [sortBy, setSortBy] = useState("newest");
 
     const [cars, setCars] = useState([]);
     const [carsLoading, setCarsLoading] = useState(false);
@@ -22,14 +28,29 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     const priceMin = useMemo(() => cars.length ? Math.min(...cars.map(c => c.price)) : 0, [cars]);
     const priceMax = useMemo(() => cars.length ? Math.max(...cars.map(c => c.price)) : 2500000, [cars]);
     const yearMin  = useMemo(() => cars.length ? Math.min(...cars.map(c => c.year))  : 1900, [cars]);
-    const yearMax  = useMemo(() => cars.length ? Math.max(...cars.map(c => c.year))  : 2026, [cars]);
+    const yearMax  = useMemo(() => cars.length ? Math.max(...cars.map(c => c.year))  : new Date().getFullYear(), [cars]);
+    const mileageMax = useMemo(() => cars.length ? Math.max(...cars.map(c => c.mileage || 0)) : 500000, [cars]);
 
     const TRANSMISSIONS = useMemo(() => config?.transmissions || [], [config]);
     const FUELS = useMemo(() => config?.fuels || [], [config]);
+    const DRIVETRAINS = useMemo(() => config?.drivetrains || [], [config]);
+    const SORTS = [
+        { value: "newest",     label: "Newest first" },
+        { value: "oldest",     label: "Oldest first" },
+        { value: "price_asc",  label: "Price ↑" },
+        { value: "price_desc", label: "Price ↓" },
+        { value: "year_asc",   label: "Year ↑" },
+        { value: "year_desc",  label: "Year ↓" },
+    ];
     const BRANDS = useMemo(() => {
         const inDB = new Set(cars.map(c => c.brand));
         return (config?.brands || []).filter(b => inDB.has(b)).sort((a, b) => a.localeCompare(b));
     }, [cars, config]);
+
+    const filteredBrands = useMemo(() => 
+        BRANDS.filter(b => b.toLowerCase().includes(brandSearch.toLowerCase())),
+        [BRANDS, brandSearch]
+    );
 
     useEffect(() => {
         const fetchCars = async () => {
@@ -49,10 +70,11 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     }, []);
 
     useEffect(() => {
-        if (cars.length === 0) return;
-        setMaxPrice(Math.max(...cars.map(C => C.price)));
-        setMinYear(Math.min(...cars.map(c => c.year)));
-    }, [cars]);
+        if ( cars.length === 0) return;
+        setPriceRange([priceMin, priceMax]);
+        setYearRange([yearMin, yearMax]);
+        setMaxMileage(mileageMax);
+    }, [priceMin, priceMax, yearMin, yearMax, mileageMax]);
 
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "instant" });
@@ -66,12 +88,17 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     }, [searchParams]);
 
     const filtered = useMemo(() => {
-        return cars.filter((car) => {
+
+        if (!priceRange || !yearRange || maxMileage === null) return[];
+
+        let result = cars.filter((car) => {
             if(selectedBrand !== "All" && car.brand !== selectedBrand) return false;
-            if(car.price > maxPrice) return false;
-            if(car.year < minYear) return false;
+            if(car.price < priceRange[0] || car.price > priceRange[1]) return false;
+            if(car.year < yearRange[0] || car.year > yearRange[1]) return false;
+            if((car.mileage || 0) > maxMileage) return false;
             if(selectedTrans !== "All" && car.transmission !== selectedTrans) return false;
             if(selectedFuel !== "All" && car.fuel !== selectedFuel) return false;
+            if(selectedDrive !== "All" && car.drivetrain !== selectedDrive) return false;
             if(search.trim()) {
                 const q = search.trim().toLowerCase();
                 if(
@@ -83,14 +110,30 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
             }
             return true;
         });
-    }, [cars, selectedBrand, maxPrice, minYear, selectedTrans, selectedFuel, search]);
+
+        result = [...result].sort((a, b) => {
+            if (sortBy === "newest")     return new Date(b.createdAt) - new Date(a.createdAt);
+            if (sortBy === "oldest")     return new Date(a.createdAt) - new Date(b.createdAt);
+            if (sortBy === "price_asc")  return a.price - b.price;
+            if (sortBy === "price_desc") return b.price - a.price;
+            if (sortBy === "year_asc")   return a.year - b.year;
+            if (sortBy === "year_desc")  return b.year - a.year;
+            return 0; 
+        });
+
+        return result;
+    }, [cars,priceRange, yearRange, maxMileage, selectedBrand, selectedTrans, selectedFuel, selectedDrive, search, sortBy]);
 
     const handleReset = () => {
         setSelectedBrand("All");
-        setMaxPrice(priceMax);
-        setMinYear(yearMin);
+        setBrandSearch("");
+        setPriceRange([priceMin, priceMax]);
+        setYearRange([yearMin, yearMax]);
+        setMaxMileage(mileageMax);
         setSelectedTrans("All");
         setSelectedFuel("All");
+        setSelectedDrive("All");
+        setSortBy("newest");
         setSearch("");
         setInputVal("");
     };
@@ -99,6 +142,8 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
         e.preventDefault();
         setSearch(inputVal);
     };
+
+    const fmt = (n) => n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}`;
 
     return ( 
         <div className="listings-page">
@@ -128,56 +173,162 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                                 <button className="filter-reset-btn" type="button" onClick={handleReset}>Reset</button>
                             </div>
                             <div className="filter-group">
-                                <p className="filter-group-label">Brand</p>
-                                <div className="filter-chips">
-                                    <button
-                                        type="button"
-                                        className={`filter-chip ${selectedBrand === "All" ? "active" : ""}`}
-                                        onClick={() => setSelectedBrand("All")}
-                                    >All</button>
-                                    {BRANDS.map((b) => (
-                                        <button
-                                            type="button"
-                                            key={b}
-                                            className={`filter-chip ${selectedBrand === b ? "active" : ""}`}
-                                            onClick={() => setSelectedBrand(b)}
-                                        >{b}</button>
+                                <p className="filter-group-label">Sort by</p>
+                                <select 
+                                    className="filter-select"
+                                    value={sortBy}
+                                    onChange={e => setSortBy(e.target.value)}
+                                >
+                                    {SORTS.map(s => (
+                                        <option key={s.value} value={s.value}>{s.label}</option>
                                     ))}
+                                </select>
+                            </div>
+                            <div className="filter-divider" />
+                            <div className="filter-group">
+                                <p className="filter-group-label">Brand</p>
+                                <div className="filter-brand-wrap">
+                                    <div 
+                                        className="filter-brand-btn" 
+                                        onClick={() => setBrandDropdownOpen(p => !p)}
+                                    >
+                                        <span>{selectedBrand === "All" ? "All brands" : selectedBrand}</span>
+                                        <span className="filter-brand-arrow">{brandDropdownOpen ? "∧" : "∨"}</span>
+                                    </div>
+                                    {brandDropdownOpen && (
+                                        <>
+                                            <div 
+                                                className="filter-brand-backdrop"
+                                                onClick={() => setBrandDropdownOpen(false)}
+                                            />
+                                            <div className="filter-brand-dropdown">
+                                                <input 
+                                                    className="filter-brand-search"
+                                                    placeholder="Search brand..."
+                                                    value={brandSearch}
+                                                    onChange={e => setBrandSearch(e.target.value)}
+                                                    autoFocus
+                                                />
+                                                <div
+                                                    className={`filter-brand-option ${selectedBrand === "All" ? "active" : ""}`}
+                                                    onClick={() => {
+                                                        setSelectedBrand("All");
+                                                        setBrandDropdownOpen(false);
+                                                        setBrandSearch("");
+                                                    }}
+                                                >
+                                                    All brands
+                                                </div>
+                                                {filteredBrands.map(b => (
+                                                    <div
+                                                        key={b}
+                                                        className={`filter-brand-option ${selectedBrand === b ? "active" : ""}`}
+                                                        onClick={() => {
+                                                            setSelectedBrand(b);
+                                                            setBrandDropdownOpen(false);
+                                                            setBrandSearch("");
+                                                        }}    
+                                                    >
+                                                        {b}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <div className="filter-divider" />
-                            <div className="filter-group">
-                                <p className="filter-group-label">Max Price: ${maxPrice.toLocaleString()}</p>
-                                <input 
-                                    type="range"
-                                    min={priceMin} 
-                                    max={priceMax}
-                                    value={maxPrice}
-                                    onChange={(e) => {
-                                        setMaxPrice(Number(e.target.value));
-                                        e.target.style.setProperty('--val', ((Number(e.target.value) -  priceMin) / (priceMax - priceMin) * 100) + '%');
-                                    }}
-                                    style={{'--val' : ((maxPrice - priceMin) / (priceMax - priceMin) * 100) + '%'}}
-                                    className="filter-range"
-                                />
-                            </div>
+                            {priceRange && (
+                                <div className="filter-group">
+                                    <p className="filter-group-label">
+                                        Price: {fmt(priceRange[0])} — {fmt(priceRange[1])}
+                                    </p>
+                                    <div className="filter-range-row">
+                                        <span className="filter-range-label">{fmt(priceMin)}</span>
+                                        <input
+                                            type="range"
+                                            className="filter-range"
+                                            min={priceMin}
+                                            max={priceMax}
+                                            value={priceRange[0]}
+                                            onChange={e => {
+                                                const v = Number(e.target.value);
+                                                if (v <= priceRange[1]) setPriceRange([v, priceRange[1]]);
+                                                e.target.style.setProperty('--val', ((v - priceMin) / (priceMax - priceMin) * 100) + '%');
+                                            }}
+                                            style={{ '--val': ((priceRange[0] - priceMin) / (priceMax - priceMin) * 100) + '%' }}
+                                        />
+                                        <input 
+                                            type="range"
+                                            className="filter-range"
+                                            min={priceMin} max={priceMax}
+                                            value={priceRange[1]}
+                                            onChange={e => {
+                                                const v = Number(e.target.value);
+                                                if (v >= priceRange[0]) setPriceRange([priceRange[0], v]);
+                                                e.target.style.setProperty('--val', ((v - priceMin) / (priceMax - priceMin) * 100) + '%');
+                                            }}
+                                            style={{ '--val': ((priceRange[1] - priceMin) / (priceMax - priceMin) * 100) + '%' }}
+                                        />
+                                        <span className="filter-range-label">{fmt(priceMax)}</span>
+                                    </div>
+                                </div>
+                            )}
                             <div className="filter-divider" />
-                            <div className="filter-group">
-                                <p className="filter-group-label">Year: {minYear}</p>
-                                <input 
-                                    type="range"
-                                    min={yearMin}
-                                    max={yearMax}
-                                    step={1}
-                                    value={minYear}
-                                    onChange={(e) => {
-                                        setMinYear(Number(e.target.value));
-                                        e.target.style.setProperty('--val', ((Number(e.target.value) - yearMin) / (yearMax - yearMin) * 100) + '%');
-                                    }}
-                                    style={{'--val': ((minYear - yearMin) / (yearMax - yearMin) * 100) + '%'}} 
-                                    className="filter-range"                   
-                                />
-                            </div>
+                            {yearRange && (
+                                <div className="filter-group">
+                                    <p className="filter-group-label">
+                                        Year: {yearRange[0]} — {yearRange[1]}
+                                    </p>
+                                    <div className="filter-range-row">
+                                        <span className="filter-range-label">{yearMin}</span>
+                                        <input
+                                            type="range"
+                                            className="filter-range"
+                                            min={yearMin} max={yearMax} step={1}
+                                            value={yearRange[0]}
+                                            onChange={e => {
+                                                const v = Number(e.target.value);
+                                                if (v <= yearRange[1]) setYearRange([v, yearRange[1]]);
+                                                e.target.style.setProperty('--val', ((v - yearMin) / (yearMax - yearMin) * 100) + '%');
+                                            }}
+                                            style={{ '--val': ((yearRange[0] - yearMin) / (yearMax - yearMin) * 100) + '%' }}
+                                        />
+                                        <input
+                                            type="range"
+                                            className="filter-range"
+                                            min={yearMin} max={yearMax} step={1}
+                                            value={yearRange[1]}
+                                            onChange={e => {
+                                                const v = Number(e.target.value);
+                                                if (v >= yearRange[0]) setYearRange([yearRange[0], v]);
+                                                e.target.style.setProperty('--val', ((v - yearMin) / (yearMax - yearMin) * 100) + '%');
+                                            }}
+                                            style={{ '--val': ((yearRange[1] - yearMin) / (yearMax - yearMin) * 100) + '%' }}
+                                        />
+                                        <span className="filter-range-label">{yearMax}</span>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="filter-divider" />
+                            {maxMileage !== null && (
+                                <div className="filter-group">
+                                    <p className="filter-group-label">
+                                        Max mileage: {maxMileage.toLocaleString()} km
+                                    </p>
+                                    <input
+                                        type="range"
+                                        className="filter-range"
+                                        min={0} max={mileageMax}
+                                        value={maxMileage}
+                                        onChange={e => {
+                                            setMaxMileage(Number(e.target.value));
+                                            e.target.style.setProperty('--val', (Number(e.target.value) / mileageMax * 100) + '%');
+                                        }}
+                                        style={{ '--val': (maxMileage / mileageMax * 100) + '%' }}
+                                    />
+                                </div>
+                            )}
                             <div className="filter-divider" />
                             <div className="filter-group">
                                 <p className="filter-group-label">Transmission</p>
@@ -186,14 +337,18 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                                         type="button"
                                         className={`filter-chip ${selectedTrans === "All" ? "active" : ""}`}
                                         onClick={() => setSelectedTrans("All")}
-                                    >All</button>
+                                    >
+                                        All
+                                    </button>
                                     {TRANSMISSIONS.map((t) => (
                                         <button
                                             type="button"
                                             key={t}
                                             className={`filter-chip ${selectedTrans === t ? "active" : ""}`}
                                             onClick={() => setSelectedTrans(t)}
-                                        >{t}</button>
+                                        >
+                                            {t}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -213,6 +368,29 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                                             className={`filter-chip ${selectedFuel === f ? "active" : ""}`}
                                             onClick={() => setSelectedFuel(f)}
                                         >{f}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="filter-divider" />
+                            <div className="filter-group">
+                                <p className="filter-group-label">Drivetrain</p>
+                                <div className="filter-chips">
+                                    <button 
+                                        type="button" 
+                                        className={`filter-chip ${selectedDrive === "All" ? "active" : ""}`} 
+                                        onClick={() => setSelectedDrive("All")}
+                                    >
+                                        All
+                                    </button>
+                                    {DRIVETRAINS.map(d => (
+                                        <button 
+                                            type="button" 
+                                            key={d} 
+                                            className={`filter-chip ${selectedDrive === d ? "active" : ""}`} 
+                                            onClick={() => setSelectedDrive(d)}
+                                        >
+                                            {d}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
