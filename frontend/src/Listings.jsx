@@ -1,7 +1,8 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CarCard from "./CarCard";
 import { useConfig } from "./useConfig";
+import SearchableDropdown from "./SearchableDropDown";
 
 const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     const navigate = useNavigate();
@@ -10,9 +11,16 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
 
     const [inputVal, setInputVal] =useState(searchParams.get("search") || "");
     const [search, setSearch] = useState(searchParams.get("search") || "");
-    const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || "All");
-    const [brandSearch, setBrandSearch] = useState("");
-    const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+    const [selectedBrand, setSelectedBrand] = useState(searchParams.get("brand") || "");
+    const [brandOpen, setBrandOpen] = useState(false);
+    const brandRef = useRef(null);
+
+    const [sortOpen, setSortOpen] = useState(false);
+    const sortRef = useRef(null);   
+
+    const [selectedModel, setSelectedModel] = useState("");
+    const [modelOpen, setModelOpen] = useState(false);
+    const modelRef = useRef(null);
 
     const [priceRange, setPriceRange] = useState(null);
     const [yearRange, setYearRange] = useState(null);
@@ -34,6 +42,7 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     const TRANSMISSIONS = useMemo(() => config?.transmissions || [], [config]);
     const FUELS = useMemo(() => config?.fuels || [], [config]);
     const DRIVETRAINS = useMemo(() => config?.drivetrains || [], [config]);
+    const MODELS_MAP = useMemo(() => config?.models || {}, [config]);
     const SORTS = [
         { value: "newest",     label: "Newest first" },
         { value: "oldest",     label: "Oldest first" },
@@ -47,10 +56,13 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
         return (config?.brands || []).filter(b => inDB.has(b)).sort((a, b) => a.localeCompare(b));
     }, [cars, config]);
 
-    const filteredBrands = useMemo(() => 
-        BRANDS.filter(b => b.toLowerCase().includes(brandSearch.toLowerCase())),
-        [BRANDS, brandSearch]
-    );
+    const MODELS = useMemo(() => {
+        if (!selectedBrand) return [];
+        const inDB = new Set(cars.filter(c => c.brand === selectedBrand).map(c => c.model));
+        return (MODELS_MAP[selectedBrand] || [])
+            .filter(m => inDB.has(m))
+            .sort((a, b) => a.localeCompare(b));
+    }, [selectedBrand, cars, MODELS_MAP]);
 
     useEffect(() => {
         const fetchCars = async () => {
@@ -77,22 +89,57 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     }, [priceMin, priceMax, yearMin, yearMax, mileageMax]);
 
     useEffect(() => {
+        const handler = (e) => {
+            if (sortRef.current && !sortRef.current.contains(e.target)) {
+                setSortOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    useEffect(() => {
         window.scrollTo({ top: 0, behavior: "instant" });
     }, []);
 
     useEffect(() => {
-        setSelectedBrand(searchParams.get("brand") || "All");
+        setSelectedBrand(searchParams.get("brand") || "");
         const s = searchParams.get("search") || "";
         setSearch(s);
         setInputVal(s);
     }, [searchParams]);
+
+    useEffect(() => {
+        setSelectedModel("");
+    }, [selectedBrand]);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (brandRef.current && !brandRef.current.contains(e.target)) {
+                setBrandOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [])
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (modelRef.current && !modelRef.current.contains(e.target)) {
+                setModelOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     const filtered = useMemo(() => {
 
         if (!priceRange || !yearRange || maxMileage === null) return[];
 
         let result = cars.filter((car) => {
-            if(selectedBrand !== "All" && car.brand !== selectedBrand) return false;
+            if(selectedBrand && car.brand !== selectedBrand) return false;
+            if(selectedModel && car.model !== selectedModel) return false;
             if(car.price < priceRange[0] || car.price > priceRange[1]) return false;
             if(car.year < yearRange[0] || car.year > yearRange[1]) return false;
             if((car.mileage || 0) > maxMileage) return false;
@@ -122,11 +169,11 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
         });
 
         return result;
-    }, [cars,priceRange, yearRange, maxMileage, selectedBrand, selectedTrans, selectedFuel, selectedDrive, search, sortBy]);
+    }, [cars,priceRange, yearRange, maxMileage, selectedBrand, selectedModel, selectedTrans, selectedFuel, selectedDrive, search, sortBy]);
 
     const handleReset = () => {
-        setSelectedBrand("All");
-        setBrandSearch("");
+        setSelectedBrand("");
+        setSelectedModel("");
         setPriceRange([priceMin, priceMax]);
         setYearRange([yearMin, yearMax]);
         setMaxMileage(mileageMax);
@@ -144,6 +191,7 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
     };
 
     const fmt = (n) => n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}`;
+
 
     return ( 
         <div className="listings-page">
@@ -174,68 +222,73 @@ const Listings = ({ favorites, onToggleFavorite, darkMode }) => {
                             </div>
                             <div className="filter-group">
                                 <p className="filter-group-label">Sort by</p>
-                                <select 
-                                    className="filter-select"
-                                    value={sortBy}
-                                    onChange={e => setSortBy(e.target.value)}
-                                >
-                                    {SORTS.map(s => (
-                                        <option key={s.value} value={s.value}>{s.label}</option>
-                                    ))}
-                                </select>
+                                <div className="fsd-wrap" ref={sortRef}>
+                                    <div
+                                        className={`fsd-input-wrap ${sortOpen ? "open" : ""}`}
+                                        onClick={() => setSortOpen(p => !p)}
+                                    >
+                                        <span className="fsd-value">
+                                            {SORTS.find(s => s.value === sortBy)?.label}
+                                        </span>
+                                        <span className="fsd-arrow">{sortOpen ? "∧" : "∨"}</span>
+                                    </div>
+                                    {sortOpen && (
+                                        <div className="fsd-dropdown">
+                                            {SORTS.map(s => (
+                                                <div
+                                                    key={s.value}
+                                                    className={`fsd-option ${sortBy === s.value ? "active" : ""}`}
+                                                    onClick={() => {
+                                                        setSortBy(s.value);
+                                                        setSortOpen(false);
+                                                    }}
+                                                >
+                                                    {s.label}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className="filter-divider" />
                             <div className="filter-group">
                                 <p className="filter-group-label">Brand</p>
-                                <div className="filter-brand-wrap">
-                                    <div 
-                                        className="filter-brand-btn" 
-                                        onClick={() => setBrandDropdownOpen(p => !p)}
-                                    >
-                                        <span>{selectedBrand === "All" ? "All brands" : selectedBrand}</span>
-                                        <span className="filter-brand-arrow">{brandDropdownOpen ? "∧" : "∨"}</span>
-                                    </div>
-                                    {brandDropdownOpen && (
-                                        <>
-                                            <div 
-                                                className="filter-brand-backdrop"
-                                                onClick={() => setBrandDropdownOpen(false)}
-                                            />
-                                            <div className="filter-brand-dropdown">
-                                                <input 
-                                                    className="filter-brand-search"
-                                                    placeholder="Search brand..."
-                                                    value={brandSearch}
-                                                    onChange={e => setBrandSearch(e.target.value)}
-                                                    autoFocus
-                                                />
-                                                <div
-                                                    className={`filter-brand-option ${selectedBrand === "All" ? "active" : ""}`}
-                                                    onClick={() => {
-                                                        setSelectedBrand("All");
-                                                        setBrandDropdownOpen(false);
-                                                        setBrandSearch("");
-                                                    }}
-                                                >
-                                                    All brands
-                                                </div>
-                                                {filteredBrands.map(b => (
-                                                    <div
-                                                        key={b}
-                                                        className={`filter-brand-option ${selectedBrand === b ? "active" : ""}`}
-                                                        onClick={() => {
-                                                            setSelectedBrand(b);
-                                                            setBrandDropdownOpen(false);
-                                                            setBrandSearch("");
-                                                        }}    
-                                                    >
-                                                        {b}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                                <SearchableDropdown 
+                                    refEl={brandRef}
+                                    value={selectedBrand}
+                                    onClear={() => { 
+                                        setSelectedBrand("");  
+                                        setBrandOpen(false); 
+                                    }}
+                                    open={brandOpen}
+                                    onOpen={() => setBrandOpen(p => !p)}
+                                    allOptions={BRANDS}
+                                    onSelect={(b) => { 
+                                        setSelectedBrand(b); 
+                                        setBrandOpen(false); 
+                                    }}
+                                    placeholder="Select brand..."
+                                />
+                            </div>
+                            <div className="filter-group">
+                                <p className="filter-group-label" style={{ opacity: selectedBrand ? 1 : 0.45 }}>Model</p>
+                                <SearchableDropdown
+                                    refEl={modelRef}
+                                    value={selectedModel}
+                                    onClear={() => { 
+                                        setSelectedModel(""); 
+                                        setModelOpen(false); 
+                                    }}
+                                    open={modelOpen}
+                                    onOpen={() => selectedBrand && setModelOpen(p => !p)}
+                                    allOptions={MODELS}
+                                    onSelect={(m) => { 
+                                        setSelectedModel(m); 
+                                        setModelOpen(false); 
+                                    }}
+                                    placeholder={selectedBrand ? "All models" : "Select brand first"}
+                                    disabled={!selectedBrand}
+                                />
                             </div>
                             <div className="filter-divider" />
                             {priceRange && (

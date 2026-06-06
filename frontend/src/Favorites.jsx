@@ -1,9 +1,20 @@
 import { useNavigate } from "react-router-dom";
 import CarCard from "./CarCard";
+import { useEffect, useState } from "react";
 
 const Favorites = ({ favorites = [], onToggleFavorite, darkMode }) => {
     const navigate=useNavigate();
-    const favCars = cars.filter((car) => favorites.includes(car.id));
+    const [cars, setCars] = useState([]);
+
+    useEffect(() => {
+        if (favorites.length === 0) return;
+        fetch("http://localhost:5000/api/cars?status=active") 
+            .then(r => r.json())
+            .then(data => setCars(data))
+            .catch(console.error);
+    }, [favorites]);
+
+    const favCars = cars.filter((car) => favorites.includes(car._id));
 
     return ( 
         <main className="fav-page">
@@ -25,7 +36,7 @@ const Favorites = ({ favorites = [], onToggleFavorite, darkMode }) => {
                     <div className="fav-grid">
                         {favCars.map((car) => (
                             <CarCard 
-                                key={car.id}
+                                key={car._id}
                                 car={car}
                                 favorites={favorites}
                                 onToggleFavorite={onToggleFavorite}

@@ -21,9 +21,7 @@ const Add = () => {
     const EQUIPMENT_CATS = config?.equipmentCats || [];
 
     const [loading, setLoading] = useState(!isNew);
-    const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [uploading, setUploading] = useState(false);
 
@@ -40,6 +38,7 @@ const Add = () => {
     const [modelError, setModelError] = useState("");
     const [mileageError, setMileageError] = useState("");
     const [imagesError, setImagesError] = useState("");
+    const [vinError, setVinError] = useState("");
     
 
     const [images, setImages] = useState([]);
@@ -213,6 +212,14 @@ const Add = () => {
         return valid;
     };
 
+    const validateVin = (vin) => {
+        if (!vin) return;
+        if (vin.length !== 17) return "VIN must be exactly 17 characters";
+        if (/[IOQ]/i.test(vin)) return "VIN cannot contain I, O, or Q";
+        if (!/^[A-HJ-NPR-Z0-9]{17}$/i.test(vin)) return "VIN contains invalid characters";
+        return "";
+    };
+
     const doSave = async (payload) => {
         if (isNew) {
             const res = await fetch("http://localhost:5000/api/cars", {
@@ -232,20 +239,6 @@ const Add = () => {
             });
             if (!res.ok) throw new Error("save failed");
             return res.json();
-        }
-    };
-
-    const handleSave = async () => {
-        if (!validate(false)) return;
-        setSaving(true);
-        try {
-            await doSave(buildPayload(false));
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2500);
-        } catch {
-            alert("Something went wrong.");
-        } finally {
-            setSaving(false);
         }
     };
 
@@ -588,6 +581,7 @@ const Add = () => {
                                             setBrandError("");
                                         }}
                                         placeholder="Select Brand"
+                                        searchable
                                     />
                                     {brandError && <span className="add-error">{brandError}</span>}
                                 </div>
@@ -611,6 +605,7 @@ const Add = () => {
                                             setModelError("");
                                         }}
                                         placeholder={brand ? "Select Model" : "Select Brand first"}
+                                        searchable
                                     />
                                 </div>
                                 {modelError && <span className="add-error">{modelError}</span>}
@@ -798,11 +793,18 @@ const Add = () => {
                         );
                         if (spec.key === "vin") return specCard(
                             <input 
-                                className="add-details-spec-input" 
+                                className={`add-details-spec-input ${vinError ? "add-input-error" : ""}`}
                                 placeholder="1HGCM82633A123456"
                                 value={specsVals.vin || ""} 
                                 disabled={isRemoved}
-                                onChange={e => setSpecsVals(p => ({ ...p, vin: e.target.value }))} />
+                                onChange={e => {
+                                    const val = e.target.value.toUpperCase();
+                                    setSpecsVals(p => ({ ...p, vin: val }));
+                                    setVinError(validateVin(val));
+                                }}
+                                maxLength={17}
+                            />,
+                            vinError
                         );
                         if (spec.key === "owners") return specCard(
                             <input 
@@ -947,14 +949,6 @@ const Add = () => {
                     disabled={publishing}
                 >
                     {publishing ? "Publishing..." : "Publish Listing"}
-                </button>
-                <button
-                    className="add-cancel-btn"
-                    style={{ fontSize: 15, padding: "13px 28px" }}
-                    onClick={handleSave}
-                    disabled={saving}
-                >
-                    {saving ? "Saving..." : saved ? "✓ Saved" : "Save Draft"}
                 </button>
                 {!isNew && (
                     <button
