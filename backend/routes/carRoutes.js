@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Car = require("../models/Car");
+const { protect } = require("../middleware/auth");
 
 const generateTitle = ({ brand, model }) => [brand, model].filter(Boolean).join(" ").trim();
 
@@ -53,9 +54,10 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", protect,  async (req, res) => {
     try {
         req.body.title = generateTitle(req.body);
+        req.body.owner = req.user._id;
         const newCar = new Car(req.body);
         await newCar.save();
         res.status(201).json(newCar);
@@ -64,15 +66,15 @@ router.post("/", async (req, res) => {
     }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", protect, async (req, res) => {
     try{
+        const car = await Car.findById(req.params.id);
+        if (!car) return res.status(404).json({ message: "Not found" });
+        if (car.owner?.toString() !== req.user._id.toString())
+            return res. status(403).json({ message: "Not your listing" });
+
         req.body.title = generateTitle(req.body);
-        const updated = await Car.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            { new: true, runValidators: true }
-        );
-        if(!updated) return res.status(404).json({ message: "Not found" });
+        const updated = await Car.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
         res.json(updated);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -95,16 +97,20 @@ router.patch("/:id/status", async (req, res) => {
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
-})
+});
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", protect,  async (req, res) => {
     try{
-        const deleted = await Car.findByIdAndDelete(req.params.id);
-        if (!deleted) return res.status(404).json({ message: "Not found" });
+        const car = await Car.findById(req.params.id);
+        if (!car) return res.status(404).json({ message: "Not found" });
+        if (car.owner?.toString() !== req.user._id.toString())
+            return res.status(403).json({ message: "Not your listing" });
+
+        await Car.findByIdAndDelete(req.params.id);
         res.json({ message: "Deleted" });
     } catch (err) {
         res.status(400).json({ message: "Invalid id" });
     }
-})
+});
 
 module.exports = router;

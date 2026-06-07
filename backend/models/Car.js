@@ -50,6 +50,12 @@ const carSchema = new mongoose.Schema({
 
     location: { type: String, trim: true },
 
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+    }
+
 }, { timestamps: true });
 
 carSchema.index({ brand: 1, model: 1 });
