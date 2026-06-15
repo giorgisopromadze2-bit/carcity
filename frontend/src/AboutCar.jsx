@@ -77,7 +77,7 @@ const AboutCar = ({ car }) => {
                             <p className="market-based">
                                 Average based on {marketData.count} similar listing{marketData.count !== 1 ? "s" : ""}
                             </p>
-                            <div className="market-ramge-wrap">
+                            <div className="market-range-wrap">
                                 <div className="market-track">
                                     <div className="market-dot" style={{ left: `${dotPercent}%` }} />
                                 </div>

@@ -19,7 +19,7 @@ const CarDetail = ({ favorites, onToggleFavorite, darkMode }) => {
     }, [id]);
 
     useEffect(() => {
-        const fetchCcar = async () => {
+        const fetchCar = async () => {
             try {
                 setLoading(true);
                 const res = await fetch(`http://localhost:5000/api/cars/${id}`);
@@ -32,7 +32,7 @@ const CarDetail = ({ favorites, onToggleFavorite, darkMode }) => {
                 setLoading(false);
             }
         };
-        fetchCcar();
+        fetchCar();
     }, [id]);
 
     if (loading) return (

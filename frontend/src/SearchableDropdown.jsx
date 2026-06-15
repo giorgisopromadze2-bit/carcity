@@ -49,7 +49,7 @@ const SearchableDropdown = ({ refEl, value, onClear, open, onOpen, allOptions, o
             {open && !disabled && (
                 <div className="fsd-dropdown">
                     {filtered.length === 0 ? (
-                        <div className="fsd-empty">Np results</div>
+                        <div className="fsd-empty">No results</div>
                     ) : (
                         filtered.map(opt => (
                             <div 

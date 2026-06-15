@@ -26,7 +26,7 @@ const Favorites = ({ favorites = [], onToggleFavorite, darkMode }) => {
                 {favCars.length === 0 ? (
                     <div className="fav-empty-card">
                         <img src="/black-heart.png" alt="no favorites" className="fav-empty-icon" />
-                        <h2 className="fav-emty-title">No favorites yet</h2>
+                        <h2 className="fav-empty-title">No favorites yet</h2>
                         <p className="fav-empty-text">Tap the heart on any car to save it.</p>
                         <button className="cta-btn" onClick={() => navigate("/listings")}>
                             Browse cars

@@ -2,11 +2,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useConfig } from "./useConfig";
 import { useEffect, useRef, useState } from "react";
 import SpecSelect from "./SpecSelect";
+import { useAuth } from "./AuthContext";
 
 const Add = () => {
     const { id } = useParams();
     const isNew = !id;
     const navigate = useNavigate();
+    const { token } = useAuth();
     const thumbsRef = useRef(null);
     const activeThumbRef = useRef(null);
     const { config, loading: configLoading } = useConfig();
@@ -224,7 +226,10 @@ const Add = () => {
         if (isNew) {
             const res = await fetch("http://localhost:5000/api/cars", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) throw new Error("save failed");
@@ -234,7 +239,10 @@ const Add = () => {
         } else {
             const res = await fetch(`http://localhost:5000/api/cars/${id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) throw new Error("save failed");
@@ -260,7 +268,10 @@ const Add = () => {
         if (!window.confirm("Delete this listing?")) return;
         setDeleting(true);
         try {
-            await fetch(`http://localhost:5000/api/cars/${id}`, { method: "DELETE" });
+            await fetch(`http://localhost:5000/api/cars/${id}`, { 
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            });
             navigate("/listings");
         } catch {
             alert("Delete failed.");

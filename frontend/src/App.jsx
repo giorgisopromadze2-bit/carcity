@@ -6,7 +6,10 @@ import Favorites from './Favorites';
 import Listings from './Listings';
 import CarDetail from "./CarDetail";
 import Add from './Add';
-import AddDetails from "./Add"
+import Login from './Login';
+import Register from './Register';
+import AuthCallback from './AuthCallback';
+import { AuthProvider } from './AuthContext';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -33,17 +36,20 @@ function App() {
   };
 
   return (
-    <>
-    <Header darkMode={darkMode} setDarkMode={setDarkMode} />
-    <Routes>
-      <Route path='/' element={<Home favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
-      <Route path='/favorites' element={<Favorites favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
-      <Route path='/listings' element={<Listings favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
-      <Route path='/cars/:id' element={<CarDetail favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
-      <Route path='/add' element={<Add />}/>
-      <Route path='/add/:id'element={<Add />} />
-    </Routes>
-    </>
+    <AuthProvider>
+      <Header darkMode={darkMode} setDarkMode={setDarkMode} />
+      <Routes>
+        <Route path='/' element={<Home favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
+        <Route path='/favorites' element={<Favorites favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
+        <Route path='/listings' element={<Listings favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
+        <Route path='/cars/:id' element={<CarDetail favorites={favorites} onToggleFavorite={handleToggleFavorite} darkMode={darkMode} />} />
+        <Route path='/add' element={<Add />}/>
+        <Route path='/add/:id' element={<Add />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/register' element={<Register />} />
+        <Route path='/auth/callback' element={<AuthCallback />} />
+      </Routes>
+    </AuthProvider>
   )
 }
 
